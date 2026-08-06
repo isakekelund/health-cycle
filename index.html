@@ -735,18 +735,41 @@ async function fbSet(path,data){
 // HOME
 async function loadHome(){
   try{
-    const [snap,esSnap]=await Promise.all([
+    const [snap,esSnap,settingsSnap,workoutSnap]=await Promise.all([
       get(ref(db,`users/${UID}/monthList`)),
       get(ref(db,`users/${UID}/escalationStart`)),
+      get(ref(db,`users/${UID}/settings`)),
+      get(ref(db,`users/${UID}/workout`)),
     ]);
     monthList=snap.exists()?snap.val():[];
     if(esSnap.exists()){
       ESCALATION_START=new Date(esSnap.val());
       localStorage.setItem('hc-escalation-start',esSnap.val());
     } else {
-      // First load — push local value up so other devices can read it
       set(ref(db,`users/${UID}/escalationStart`),ESCALATION_START.toISOString());
     }
+    if(settingsSnap.exists()){
+      const s=settingsSnap.val();
+      if(s.groupOrder){habitGroupOrder=s.groupOrder;localStorage.setItem('hc-group-order',JSON.stringify(s.groupOrder));}
+      if(s.groupLabels){localStorage.setItem('hc-group-labels',JSON.stringify(s.groupLabels));}
+    }
+    if(workoutSnap.exists()){
+      const wf=workoutSnap.val();
+      if(wf.version===WP_VERSION){
+        if(wf.season){wpSeason=wf.season;localStorage.setItem('wt-season',wf.season);}
+        ['winter','summer'].forEach(s=>{
+          const sw=wf[s]; if(!sw) return;
+          if(sw.cycle) localStorage.setItem(`wt-${s}-cycle`,JSON.stringify(sw.cycle));
+          if(sw.sel) localStorage.setItem(`wt-${s}-sel`,JSON.stringify(sw.sel));
+          if(sw.done) localStorage.setItem(`wt-${s}-done`,JSON.stringify(sw.done));
+          if(sw.gymPresets) localStorage.setItem(`wt-${s}-gym-presets`,JSON.stringify(sw.gymPresets));
+          if(sw.cardioPresets) localStorage.setItem(`wt-${s}-cardio-presets`,JSON.stringify(sw.cardioPresets));
+          if(sw.cardioChecks) localStorage.setItem(`wt-${s}-cardio-checks`,JSON.stringify(sw.cardioChecks));
+        });
+        wpLoadState();
+      }
+    }
+    _appLoaded=true;
     document.getElementById('homeLoading').classList.add('hidden');
     document.getElementById('homeContent').classList.remove('hidden');
     document.getElementById('homeSyncBadge').className='sync-badge synced';
@@ -1524,8 +1547,19 @@ function showToast(msg){
 
 // ══ EMBEDDED WORKOUT ENGINE ══
 let workoutPanelOpen = false;
+let _appLoaded = false;
 const WLS = (k,d) => { try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;} };
-const WSS = (k,v) => localStorage.setItem(k,JSON.stringify(v));
+let _wpSaveTimer = null;
+function wpSaveToFirebase(){
+  if(!_appLoaded) return;
+  clearTimeout(_wpSaveTimer);
+  _wpSaveTimer = setTimeout(()=>fbSet('workout',{
+    version:WP_VERSION,season:wpSeason,
+    winter:{cycle:WLS('wt-winter-cycle',null),sel:WLS('wt-winter-sel',null),done:WLS('wt-winter-done',[]),gymPresets:WLS('wt-winter-gym-presets',null),cardioPresets:WLS('wt-winter-cardio-presets',null),cardioChecks:WLS('wt-winter-cardio-checks',{})},
+    summer:{cycle:WLS('wt-summer-cycle',null),sel:WLS('wt-summer-sel',null),done:WLS('wt-summer-done',[]),gymPresets:WLS('wt-summer-gym-presets',null),cardioPresets:WLS('wt-summer-cardio-presets',null),cardioChecks:WLS('wt-summer-cardio-checks',{})},
+  }),800);
+}
+const WSS = (k,v) => { localStorage.setItem(k,JSON.stringify(v)); wpSaveToFirebase(); };
 
 let wpSeason = localStorage.getItem('wt-season')||'winter';
 
@@ -1613,6 +1647,7 @@ window.wpSetSeason = function(s){
   localStorage.setItem('wt-season', s);
   wpLoadState();
   renderWorkoutPanel();
+  wpSaveToFirebase();
 };
 
 function wpBlocksHTML(blocks, presetName){
@@ -1786,6 +1821,7 @@ function renderWorkoutPanel(){
       e.stopPropagation();
       const key=opt.dataset.wpkey,val=opt.dataset.val;
       localStorage.getItem(key)===val?localStorage.removeItem(key):localStorage.setItem(key,val);
+      wpSaveToFirebase();
       renderWorkoutPanel();
     });
   });
@@ -1801,6 +1837,10 @@ window.wpResetCycle = function(){
 
 // ══ HABIT SETTINGS ══
 let habitGroupOrder = JSON.parse(localStorage.getItem('hc-group-order')||'null') || ['morning','evening','general'];
+function saveGroupSettings(){
+  if(!_appLoaded) return;
+  fbSet('settings',{groupOrder:habitGroupOrder,groupLabels:JSON.parse(localStorage.getItem('hc-group-labels')||'{}')});
+}
 
 window.openHabitSettings = function(){
   document.getElementById('habitSettingsOverlay').classList.remove('hidden');
@@ -1922,6 +1962,7 @@ function renderSettingsGroups(){
     const [m] = habitGroupOrder.splice(si,1);
     habitGroupOrder.splice(ti,0,m);
     localStorage.setItem('hc-group-order', JSON.stringify(habitGroupOrder));
+    saveGroupSettings();
     renderSettingsGroups();
     renderHabits();
   });
@@ -1932,6 +1973,7 @@ window.addCustomGroup = function(){
   if(!name||habitGroupOrder.includes(name)) return;
   habitGroupOrder.push(name);
   localStorage.setItem('hc-group-order', JSON.stringify(habitGroupOrder));
+  saveGroupSettings();
   input.value='';
   renderSettingsGroups();
   renderHabits();
@@ -1945,6 +1987,7 @@ window.renameGroup = function(g){
   const labels = JSON.parse(localStorage.getItem('hc-group-labels')||'{}');
   labels[g] = name.trim();
   localStorage.setItem('hc-group-labels', JSON.stringify(labels));
+  saveGroupSettings();
   renderSettingsGroups();
   renderHabits();
   populateGroupSelects();
@@ -1960,6 +2003,7 @@ window.deleteCustomGroup = function(g){
   const labels = JSON.parse(localStorage.getItem('hc-group-labels')||'{}');
   delete labels[g];
   localStorage.setItem('hc-group-labels', JSON.stringify(labels));
+  saveGroupSettings();
   fbSet('months/'+currentMonthId+'/habits', currentMonth.habits);
   renderSettingsGroups();
   renderHabits();
