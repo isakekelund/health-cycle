@@ -735,8 +735,18 @@ async function fbSet(path,data){
 // HOME
 async function loadHome(){
   try{
-    const snap=await get(ref(db,`users/${UID}/monthList`));
+    const [snap,esSnap]=await Promise.all([
+      get(ref(db,`users/${UID}/monthList`)),
+      get(ref(db,`users/${UID}/escalationStart`)),
+    ]);
     monthList=snap.exists()?snap.val():[];
+    if(esSnap.exists()){
+      ESCALATION_START=new Date(esSnap.val());
+      localStorage.setItem('hc-escalation-start',esSnap.val());
+    } else {
+      // First load — push local value up so other devices can read it
+      set(ref(db,`users/${UID}/escalationStart`),ESCALATION_START.toISOString());
+    }
     document.getElementById('homeLoading').classList.add('hidden');
     document.getElementById('homeContent').classList.remove('hidden');
     document.getElementById('homeSyncBadge').className='sync-badge synced';
@@ -1207,6 +1217,7 @@ window.resetScoreBaseline=function(){
   if(!confirm('This clears all accumulated miss penalties and starts fresh from today. Your logged habit data stays intact. Continue?'))return;
   localStorage.removeItem('hc-escalation-start');
   ESCALATION_START=getEscalationStart();
+  fbSet('escalationStart',ESCALATION_START.toISOString());
   render();
   showToast('Miss penalties reset ✓');
 };
