@@ -107,8 +107,11 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
 .habit-name{font-size:13px;color:var(--text);flex:1}.habit-item.done .habit-name{color:var(--text-dim);text-decoration:line-through}
 .habit-streak{font-size:10px;color:var(--gold-dim)}.habit-streak.streak-at-risk{color:var(--text-dim)}
 .habit-miss-penalty{font-size:10px;color:var(--red-bright);font-weight:600;background:var(--red-bg);padding:2px 6px;border-radius:8px;border:1px solid var(--red)}
+.habit-item.paused{opacity:.5;border-style:dashed}
+.habit-paused-badge{font-size:9px;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border2);padding:2px 7px;border-radius:8px;white-space:nowrap;cursor:pointer;flex-shrink:0;letter-spacing:.04em}
 .icon-btn{width:18px;height:18px;background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;font-family:'Outfit',sans-serif;padding:0}
 .habit-item:hover .icon-btn{opacity:1}
+.habit-item.paused .icon-btn[data-pause-id]{opacity:1}
 .drag-handle{width:18px;height:18px;display:flex;align-items:center;justify-content:center;cursor:grab;color:var(--text-dim);font-size:12px;opacity:0;transition:opacity .15s;flex-shrink:0;touch-action:none}
 .habit-item:hover .drag-handle{opacity:1}
 .habit-item.dragging{opacity:.4;border-style:dashed}
@@ -423,6 +426,8 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
         <select class="add-input" id="newHabitGroup" style="max-width:110px;padding:9px 6px"></select>
         <button class="add-btn" onclick="addHabit()">+ Add</button>
       </div>
+      <button class="toggle-manage" style="margin-top:10px;display:block" onclick="pauseAllHabits()">⏸ Pause all habits</button>
+      <button class="toggle-manage" style="margin-top:6px;display:block" onclick="resumeAllHabits()">▶ Resume all habits</button>
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="exportMonthData()">⬇ Export this month as a backup file</button>
       <button class="toggle-manage" style="color:var(--red-bright);margin-top:6px;display:block" onclick="if(confirm('Clear all logged data for this month?'))clearAllData()">✕ Clear all logged data</button>
     </div>
@@ -900,9 +905,10 @@ function renderDateNav(){
 // DAILY SCORE
 function getDailyScore(d){
   const day=getDay(d);
-  const total=currentMonth.habits.length;
+  const active=currentMonth.habits.filter(h=>!h.paused);
+  const total=active.length;
   if(!total)return{done:0,total:0,pct:0};
-  const done=day.habits?Object.values(day.habits).filter(Boolean).length:0;
+  const done=active.filter(h=>day.habits&&day.habits[h.id]).length;
   return{done,total,pct:Math.round(done/total*100)};
 }
 
@@ -987,8 +993,9 @@ function getDailyPoints(d){
   if(!isTrackingDay(d)) return {points:0, total:0};
   const day=getDay(d);
   let points=0;
-  const total=currentMonth.habits.length;
-  currentMonth.habits.forEach(h=>{
+  const active=currentMonth.habits.filter(h=>!h.paused);
+  const total=active.length;
+  active.forEach(h=>{
     const done = day.habits && day.habits[h.id];
     if(done) points+=1;
     else points-=getMissPenalty(h.id, d);
@@ -1039,19 +1046,23 @@ function renderHabits(){
       </div>`;
     habits.forEach(h=>{
       const done=day.habits&&day.habits[h.id];
+      const isPaused=!!h.paused;
       const {streak,doneToday}=getStreak(h.id);
       const isWorkout=h.id==='h_m12';
       const wpOpen=isWorkout&&workoutPanelOpen;
       const _openLabel=isWorkout?'<span class="wp-open-label" style="font-size:10px;color:#9c7a1f;margin-left:4px">↓ open</span>':'';
-      const _streak=streak>=1?`<div class="habit-streak${doneToday?'':' streak-at-risk'}">🔥 ${streak}</div>`:'';
-      const missPenalty=!done?getMissPenalty(h.id,currentDate):0;
-      const _missWarn=(!done && missPenalty>=2)?`<div class="habit-miss-penalty">−${missPenalty}</div>`:'';
-      html+=`<div class="habit-item ${done?'done':''}${wpOpen?' workout-open':''}" data-id="${h.id}" data-group="${h.group||'morning'}" ${isWorkout?'data-is-workout="1"':''}>
+      const _streak=!isPaused&&streak>=1?`<div class="habit-streak${doneToday?'':' streak-at-risk'}">🔥 ${streak}</div>`:'';
+      const missPenalty=!done&&!isPaused?getMissPenalty(h.id,currentDate):0;
+      const _missWarn=(!done&&!isPaused&&missPenalty>=2)?`<div class="habit-miss-penalty">−${missPenalty}</div>`:'';
+      const _pausedBadge=isPaused?`<div class="habit-paused-badge" data-pause-id="${h.id}">⏸ paused</div>`:'';
+      html+=`<div class="habit-item ${done?'done':''}${wpOpen?' workout-open':''}${isPaused?' paused':''}" data-id="${h.id}" data-group="${h.group||'morning'}" ${isWorkout?'data-is-workout="1"':''}>
         <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
         <div class="habit-check" data-check-id="${h.id}">${done?'✓':''}</div>
         <div class="habit-name">${h.name} ${_openLabel}</div>
+        ${_pausedBadge}
         ${_streak}
         ${_missWarn}
+        <button class="icon-btn" data-pause-id="${h.id}" title="${isPaused?'Resume':'Pause'}">${isPaused?'▶':'⏸'}</button>
         <button class="icon-btn" data-edit-id="${h.id}" data-edit-name="${h.name}">✎</button>
         <button class="icon-btn" data-delete-id="${h.id}">✕</button>
       </div>`;
@@ -1078,6 +1089,8 @@ if(e.target.closest('.drag-handle')) return;
     if(delBtn){ deleteHabit(delBtn.dataset.deleteId); return; }
     const editBtn = e.target.closest('[data-edit-id]');
     if(editBtn){ openEditHabit(editBtn.dataset.editId, editBtn.dataset.editName); return; }
+    const pauseBtn = e.target.closest('[data-pause-id]');
+    if(pauseBtn){ toggleHabitPause(pauseBtn.dataset.pauseId); return; }
     const checkBtn = e.target.closest('[data-check-id]');
     if(checkBtn){ toggleHabit(checkBtn.dataset.checkId); return; }
     const item = e.target.closest('.habit-item');
@@ -1187,6 +1200,32 @@ window.toggleHabit=async function(id){
   renderHabits();
   renderDailyScore();
   await fbSet(`months/${currentMonthId}/days/${dk(currentDate)}`,day);
+};
+
+window.toggleHabitPause=async function(id){
+  const h=currentMonth.habits.find(x=>x.id===id);
+  if(!h)return;
+  h.paused=!h.paused;
+  renderHabits();
+  renderDailyScore();
+  await fbSet(`months/${currentMonthId}/habits`,currentMonth.habits);
+  showToast(h.paused?'Habit paused':'Habit resumed');
+};
+
+window.pauseAllHabits=async function(){
+  currentMonth.habits.forEach(h=>h.paused=true);
+  renderHabits();
+  renderDailyScore();
+  await fbSet(`months/${currentMonthId}/habits`,currentMonth.habits);
+  showToast('All habits paused');
+};
+
+window.resumeAllHabits=async function(){
+  currentMonth.habits.forEach(h=>delete h.paused);
+  renderHabits();
+  renderDailyScore();
+  await fbSet(`months/${currentMonthId}/habits`,currentMonth.habits);
+  showToast('All habits resumed');
 };
 
 window.addHabit=async function(){
