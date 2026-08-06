@@ -428,6 +428,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
       </div>
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="pauseAllHabits()">⏸ Pause all habits</button>
       <button class="toggle-manage" style="margin-top:6px;display:block" onclick="resumeAllHabits()">▶ Resume all habits</button>
+      <button class="toggle-manage" style="margin-top:10px;display:block" onclick="resetScoreBaseline()">↺ Reset miss penalties to today</button>
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="exportMonthData()">⬇ Export this month as a backup file</button>
       <button class="toggle-manage" style="color:var(--red-bright);margin-top:6px;display:block" onclick="if(confirm('Clear all logged data for this month?'))clearAllData()">✕ Clear all logged data</button>
     </div>
@@ -961,7 +962,7 @@ function getEscalationStart(){
   localStorage.setItem('hc-escalation-start', d.toISOString());
   return d;
 }
-const ESCALATION_START = getEscalationStart();
+let ESCALATION_START = getEscalationStart();
 
 function getMissStreakBefore(habitId, refDate){
   let streak=0, d=new Date(refDate);
@@ -1200,6 +1201,14 @@ window.toggleHabit=async function(id){
   renderHabits();
   renderDailyScore();
   await fbSet(`months/${currentMonthId}/days/${dk(currentDate)}`,day);
+};
+
+window.resetScoreBaseline=function(){
+  if(!confirm('This clears all accumulated miss penalties and starts fresh from today. Your logged habit data stays intact. Continue?'))return;
+  localStorage.removeItem('hc-escalation-start');
+  ESCALATION_START=getEscalationStart();
+  render();
+  showToast('Miss penalties reset ✓');
 };
 
 window.toggleHabitPause=async function(id){
