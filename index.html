@@ -429,6 +429,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="pauseAllHabits()">⏸ Pause all habits</button>
       <button class="toggle-manage" style="margin-top:6px;display:block" onclick="resumeAllHabits()">▶ Resume all habits</button>
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="resetScoreBaseline()">↺ Reset miss penalties to today</button>
+      <button class="toggle-manage" style="margin-top:6px;display:block" onclick="resetWeeklyNetScore()">↺ Reset weekly net score to today</button>
       <button class="toggle-manage" style="margin-top:10px;display:block" onclick="exportMonthData()">⬇ Export this month as a backup file</button>
       <button class="toggle-manage" style="color:var(--red-bright);margin-top:6px;display:block" onclick="if(confirm('Clear all logged data for this month?'))clearAllData()">✕ Clear all logged data</button>
     </div>
@@ -461,7 +462,7 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-
       </div>
       <div style="font-size:12px;color:var(--text-dim);line-height:2;margin-top:8px">
         <div style="color:var(--text-mid);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Each habit done = +1 point</div>
-        Each habit missed costs more the longer it's been skipped — 1st miss = −1, 2nd in a row = −2, 3rd = −3, and so on.<br><br>
+        Each miss in a row doubles — 1st miss = −1, 2nd = −2, 3rd = −4, 4th = −7, then it stays at −7 until you do it again.<br><br>
         <strong style="color:var(--green-bright)">A day counts as positive</strong> when total points are above 0<br>
         <strong style="color:var(--red-bright)">A day counts as negative</strong> when total points are 0 or below
       </div>
@@ -645,7 +646,30 @@ const FC={
 
 const app=initializeApp(FC);
 const db=getDatabase(app);
-const UID='isak';
+const TEST_UID=new URLSearchParams(location.search).get('uid');
+const UID=TEST_UID||'isak';
+
+// Some contexts (opening the file directly, private browsing, strict storage
+// settings) throw a SecurityError on any localStorage access. That's normally
+// caught per-call, but several reads happen at module top-level during initial
+// load — an uncaught throw there stops the whole script before loadHome() ever
+// runs, leaving the page stuck on the loading skeleton with no visible error.
+// Shadow the global with a safe version so every existing call site degrades
+// to an in-memory store instead of crashing startup.
+const localStorage = (() => {
+  try {
+    window.localStorage.setItem('__hc_probe__','1');
+    window.localStorage.removeItem('__hc_probe__');
+    return window.localStorage;
+  } catch {
+    const mem = new Map();
+    return {
+      getItem: k => mem.has(k) ? mem.get(k) : null,
+      setItem: (k,v) => { mem.set(k, String(v)); },
+      removeItem: k => { mem.delete(k); },
+    };
+  }
+})();
 
 // DEFAULT HABITS grouped by time of day
 const DEFAULT_HABITS=[
@@ -712,7 +736,9 @@ let currentMonthId=null;
 let currentMonth={habits:[],questions:[],days:{}};
 
 // UTILS
-function dk(d){return d.toISOString().split('T')[0];}
+// Local calendar date, not UTC — toISOString() shifts to UTC and silently
+// mislabels every entry by a day for any positive UTC offset (e.g. CEST).
+function dk(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function getDay(d){return currentMonth.days[dk(d)]||{habits:{},reflection:{}};}
 function getMonday(d){const x=new Date(d),dow=x.getDay();x.setDate(x.getDate()+(dow===0?-6:1-dow));return x;}
 
@@ -735,9 +761,10 @@ async function fbSet(path,data){
 // HOME
 async function loadHome(){
   try{
-    const [snap,esSnap,settingsSnap,workoutSnap]=await Promise.all([
+    const [snap,esSnap,wsSnap,settingsSnap,workoutSnap]=await Promise.all([
       get(ref(db,`users/${UID}/monthList`)),
       get(ref(db,`users/${UID}/escalationStart`)),
+      get(ref(db,`users/${UID}/weekScoreStart`)),
       get(ref(db,`users/${UID}/settings`)),
       get(ref(db,`users/${UID}/workout`)),
     ]);
@@ -747,6 +774,10 @@ async function loadHome(){
       localStorage.setItem('hc-escalation-start',esSnap.val());
     } else {
       set(ref(db,`users/${UID}/escalationStart`),ESCALATION_START.toISOString());
+    }
+    if(wsSnap.exists()){
+      WEEK_SCORE_START=new Date(wsSnap.val());
+      localStorage.setItem('hc-week-score-start',wsSnap.val());
     }
     if(settingsSnap.exists()){
       const s=settingsSnap.val();
@@ -980,28 +1011,34 @@ function getStreak(habitId){
 
 // Consecutive MISSED tracking days for a habit, ending the day before refDate.
 // Skips non-tracking days (Fri/Sat/Sun). Stops counting once a completed day is hit.
-// Escalation only starts counting from a fixed Monday — nothing before that counts as a miss.
-// This is computed ONCE (the first time this code runs) and then saved, so it stays anchored
-// to that Monday forever instead of drifting forward on every reload (which was the old bug —
-// it kept recalculating "next Monday from today," so it never actually started counting).
+// Escalation only starts counting from the baseline date — nothing before it counts as a miss.
+// The baseline is computed ONCE (the first time this code runs, or when the reset button clears
+// it) and then saved, so it stays put instead of drifting forward on every reload — that was the
+// old bug: it kept recalculating a date relative to today, so it never actually started counting.
+// Reads a reset-point date previously written by resetScoreBaseline/resetWeeklyNetScore, if any.
+function getStoredDate(key){
+  const saved = localStorage.getItem(key);
+  return saved ? new Date(saved) : null;
+}
+
 function getEscalationStart(){
-  const saved = localStorage.getItem('hc-escalation-start');
-  if(saved) return new Date(saved);
-  const d=new Date(today);
-  const dow=d.getDay(); // 0=Sun..6=Sat
-  const diff = dow===1 ? 0 : ((8-dow)%7); // days until the next Monday (0 if today is Monday)
-  d.setDate(d.getDate()+diff);
-  d.setHours(0,0,0,0);
+  const existing = getStoredDate('hc-escalation-start');
+  if(existing) return existing;
+  const d=new Date(today); // `today` is already normalised to local midnight
   localStorage.setItem('hc-escalation-start', d.toISOString());
   return d;
 }
 let ESCALATION_START = getEscalationStart();
 
+// Weekly net score reset point — days before this are excluded from getWeekNetScore.
+// Defaults to the epoch (no reset has happened) so the whole tracking week counts as usual.
+let WEEK_SCORE_START = getStoredDate('hc-week-score-start') || new Date(0);
+
 function getMissStreakBefore(habitId, refDate){
   let streak=0, d=new Date(refDate);
   d.setDate(d.getDate()-1);
   let guard=0;
-  const MAX_STREAK=6; // cap escalation at a week's worth of tracking days
+  const MAX_STREAK=3; // doubling reaches the -7 cap here, so counting further is wasted
   while(guard<MAX_STREAK+30){ // small buffer for skipped weekends, still tightly bounded
     if(d<ESCALATION_START) break; // don't count anything before the reset point
     guard++;
@@ -1015,10 +1052,11 @@ function getMissStreakBefore(habitId, refDate){
   return Math.min(streak, MAX_STREAK);
 }
 
-// Penalty for a habit if missed on `date`: escalates by consecutive prior misses,
-// capped at -7 so a long-neglected habit doesn't blow out the score.
+// Penalty for a habit if missed on `date`: doubles with each consecutive prior
+// miss (1, 2, 4, ...) and is capped at -7 — one point per day of the week — so a
+// long-neglected habit escalates fast but doesn't blow out the score.
 function getMissPenalty(habitId, date){
-  return Math.min(getMissStreakBefore(habitId, date) + 1, 7);
+  return Math.min(2 ** getMissStreakBefore(habitId, date), 7);
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
@@ -1236,13 +1274,25 @@ window.toggleHabit=async function(id){
   await fbSet(`months/${currentMonthId}/days/${dk(currentDate)}`,day);
 };
 
+// Common tail for a baseline reset: apply the new date locally, sync it to Firebase, re-render.
+function applyBaselineReset(fbKey, date, setVar, toastMsg){
+  setVar(date);
+  fbSet(fbKey, date.toISOString());
+  render();
+  showToast(toastMsg);
+}
+
 window.resetScoreBaseline=function(){
   if(!confirm('This clears all accumulated miss penalties and starts fresh from today. Your logged habit data stays intact. Continue?'))return;
   localStorage.removeItem('hc-escalation-start');
-  ESCALATION_START=getEscalationStart();
-  fbSet('escalationStart',ESCALATION_START.toISOString());
-  render();
-  showToast('Miss penalties reset ✓');
+  applyBaselineReset('escalationStart', getEscalationStart(), d=>ESCALATION_START=d, 'Miss penalties reset ✓');
+};
+
+window.resetWeeklyNetScore=function(){
+  if(!confirm('This resets your weekly net score to 0, starting fresh from today. Your logged habit data stays intact. Continue?'))return;
+  const d=new Date(today);
+  localStorage.setItem('hc-week-score-start', d.toISOString());
+  applyBaselineReset('weekScoreStart', d, v=>WEEK_SCORE_START=v, 'Weekly net score reset ✓');
 };
 
 window.toggleHabitPause=async function(id){
@@ -1347,6 +1397,7 @@ function getWeekNetScore(){
     const d=new Date(mon);d.setDate(d.getDate()+i);
     if(d>today)break;
     if(!isTrackingDay(d))continue;
+    if(d<WEEK_SCORE_START)continue;
     const s=getDailyScore(d);
     if(s.total===0)continue;
     const dp=getDailyPoints(d);
@@ -2230,6 +2281,14 @@ document.getElementById('editHabitInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') confirmEditHabit();
   if(e.key==='Escape') closeEditHabit();
 });
+
+if(TEST_UID){
+  const banner=document.createElement('div');
+  banner.textContent=`TEST MODE — writing to users/${UID}, not your real data`;
+  banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--red-bright);color:#fff;font:12px/1.4 sans-serif;text-align:center;padding:4px 8px';
+  document.body.prepend(banner);
+  document.body.style.paddingTop='24px';
+}
 
 loadHome();
 </script>
