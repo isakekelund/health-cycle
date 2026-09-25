@@ -70,7 +70,8 @@ button{font-family:inherit}
 .card-aside{font-size:12px;color:var(--text-dim);white-space:nowrap}
 .card-note{font-size:13px;color:var(--text-mid);line-height:1.6}
 .card.flush>.card-note{padding:0 16px 14px}
-.card-foot{padding:12px 16px;border-top:1px solid var(--border)}
+/* Add fields and bulk actions sit above the list they act on */
+.card-tools{padding:0 16px 12px;display:flex;flex-direction:column;gap:8px}
 .bar{background:var(--bg);border-radius:20px;height:5px;overflow:hidden}
 .bar-fill{height:100%;width:0;border-radius:20px;transition:width .4s,background .3s}
 
@@ -461,51 +462,48 @@ button{font-family:inherit}
       <div id="sp-habits" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Habits</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="settingsHabitList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="settingsNewHabit" placeholder="New habit..." onkeydown="if(event.key==='Enter')settingsAddHabit()">
               <select class="select" id="settingsNewHabitGroup"></select>
               <button class="btn btn-add" onclick="settingsAddHabit()">Add</button>
             </div>
-          </div>
-          <div class="card-foot">
             <div class="btn-row">
               <button class="btn" onclick="pauseAllHabits()">Pause all habits</button>
               <button class="btn" onclick="resumeAllHabits()">Resume all habits</button>
             </div>
           </div>
+          <div id="settingsHabitList"></div>
         </section>
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Groups</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="settingsGroupList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="newGroupInput" placeholder="New group..." onkeydown="if(event.key==='Enter')addCustomGroup()">
               <button class="btn btn-add" onclick="addCustomGroup()">Add</button>
             </div>
           </div>
+          <div id="settingsGroupList"></div>
         </section>
       </div>
 
       <div id="sp-questions" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Reflection questions</h2></div>
-          <div id="settingsQuestionList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="newQuestionInput" placeholder="New question..." onkeydown="if(event.key==='Enter')addQuestion()">
               <button class="btn btn-add" onclick="addQuestion()">Add</button>
             </div>
           </div>
+          <div id="settingsQuestionList"></div>
         </section>
       </div>
 
       <div id="sp-workout" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Cycle slots</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="wpSettingsCycle"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewSlotName" placeholder="Slot name..." onkeydown="if(event.key==='Enter')wpSettingsAddSlot()">
               <select class="select" id="wpNewSlotGroup">
@@ -515,36 +513,37 @@ button{font-family:inherit}
               <button class="btn btn-add" onclick="wpSettingsAddSlot()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsCycle"></div>
         </section>
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Gym presets</h2></div>
-          <div id="wpSettingsGym"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewGymName" placeholder="Preset name..." onkeydown="if(event.key==='Enter')wpSettingsAddGym()">
               <button class="btn btn-add" onclick="wpSettingsAddGym()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsGym"></div>
         </section>
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Cardio presets</h2></div>
-          <div id="wpSettingsCardio"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewCardioName" placeholder="Preset name..." onkeydown="if(event.key==='Enter')wpSettingsAddCardio()">
               <button class="btn btn-add" onclick="wpSettingsAddCardio()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsCardio"></div>
         </section>
       </div>
 
       <div id="sp-months" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Your months</h2></div>
-          <div id="monthList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <button class="btn btn-add btn-block" onclick="openAddMonth()">+ Add month</button>
           </div>
+          <div id="monthList"></div>
         </section>
       </div>
 
