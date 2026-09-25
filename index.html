@@ -57,8 +57,8 @@ button{font-family:inherit}
 .link{background:none;border:none;color:var(--gold);font-size:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
 .archive-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 10px;font-size:12px;color:var(--text-mid);background:var(--gold-bg);border:1px solid #ecd9a4;border-radius:10px;padding:8px 12px;margin-bottom:12px;text-align:center}
 .tabs{display:flex;gap:4px;background:var(--surface2);border-radius:12px;padding:4px}
-.tab{flex:1;padding:9px 4px;border:none;border-radius:9px;background:none;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
-.tab.active{background:var(--surface);color:var(--gold);box-shadow:0 1px 3px rgba(60,45,10,.08)}
+.tab,.seg-btn{flex:1;padding:9px 4px;border:none;border-radius:9px;background:none;color:var(--text-dim);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.tab.active,.seg-btn.active{background:var(--surface);color:var(--gold);box-shadow:0 1px 3px rgba(60,45,10,.08)}
 
 /* LAYOUT + CARDS */
 .content{max-width:560px;margin:0 auto;padding:16px}
@@ -70,7 +70,8 @@ button{font-family:inherit}
 .card-aside{font-size:12px;color:var(--text-dim);white-space:nowrap}
 .card-note{font-size:13px;color:var(--text-mid);line-height:1.6}
 .card.flush>.card-note{padding:0 16px 14px}
-.card-foot{padding:12px 16px;border-top:1px solid var(--border)}
+/* Add fields and bulk actions sit above the list they act on */
+.card-tools{padding:0 16px 12px;display:flex;flex-direction:column;gap:8px}
 .bar{background:var(--bg);border-radius:20px;height:5px;overflow:hidden}
 .bar-fill{height:100%;width:0;border-radius:20px;transition:width .4s,background .3s}
 
@@ -104,10 +105,11 @@ button{font-family:inherit}
 .habit-name{font-size:14px;color:var(--text);flex:1;min-width:0;line-height:1.35}
 .habit-item.done .habit-name{color:var(--text-dim);text-decoration:line-through}
 .habit-item.paused{opacity:.5}
-.habit-meta{font-size:12px;color:var(--text-dim);white-space:nowrap;flex-shrink:0}
+.habit-meta{font-size:12px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums}
 .habit-meta.streak{color:var(--gold-dim)}.habit-meta.streak.at-risk{color:var(--text-dim)}
 .habit-meta.penalty{color:var(--red-bright);font-weight:600}
-.habit-expand{font-size:14px;line-height:1;color:var(--text-dim);transition:transform .25s;flex-shrink:0}
+/* Every row reserves the arrow's width so the meta (streak, penalty) lines up with the workout row */
+.habit-expand{width:14px;text-align:center;font-size:14px;line-height:1;color:var(--text-dim);transition:transform .25s;flex-shrink:0}
 .habit-item.workout-open .habit-expand{transform:rotate(180deg);color:var(--gold)}
 
 /* REFLECTION */
@@ -231,6 +233,39 @@ button{font-family:inherit}
 .action-row:first-of-type{border-top:none}
 .why-text{font-size:14px;color:var(--text-mid);line-height:1.75}
 
+/* WORKOUT SETTINGS — one card per preset, edited in place */
+.wp-set-season{margin-bottom:10px}
+.pcards{padding:0 12px 12px;display:flex;flex-direction:column;gap:12px}
+.pcards:empty{display:none}
+.pcard{border:1px solid var(--border2);border-radius:12px;background:var(--surface);overflow:hidden}
+.pcard-head{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 4px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.pcard-meta{font-size:12px;color:var(--text-dim);white-space:nowrap;flex-shrink:0}
+.pcard-tools{display:flex;gap:6px;flex-wrap:wrap;padding:10px 10px 8px}
+.pcard-tools .btn{padding:6px 10px;font-size:12px}
+.pcard-tools.add-row .btn{padding:8px 12px;font-size:13px}
+.pcard-body{padding:0 0 8px}
+.pcard-empty{font-size:13px;color:var(--text-dim);padding:4px 12px 6px}
+.inl{flex:1;min-width:0;background:var(--bg);border:1px solid transparent;border-radius:7px;padding:7px 9px;font-size:14px;color:var(--text);font-family:'Outfit',sans-serif}
+.inl:hover{border-color:var(--border)}
+.inl:focus{outline:none;border-color:var(--gold-dim);background:var(--surface)}
+.inl.pcard-name{font-family:'Cormorant Garamond',serif;font-size:20px;padding:3px 9px;background:var(--surface);border-color:var(--border)}
+.inl.sec{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--text-mid);padding:6px 8px}
+.select.sm{padding:7px 8px;font-size:13px}
+.ibtn.sm{width:30px;height:30px}
+.blk-sec{display:flex;align-items:center;gap:6px;padding:10px 10px 2px 26px}
+.blk-div{height:1px;background:var(--border);margin:8px 10px 0}
+.blk-ex,.opt{display:flex;align-items:center;gap:6px;padding:3px 10px 3px 4px}
+.blk-num{width:24px;flex-shrink:0;text-align:center;font-size:12px;font-weight:500;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.blk-fixed{flex:1;min-width:0;font-size:14px;color:var(--text-mid);padding:7px 9px}
+.blk-ss{margin:5px 10px 5px 4px;border:1px solid #ecd9a4;border-left:3px solid var(--gold-dim);border-radius:10px;background:var(--gold-bg);padding:2px 0 6px}
+.ss-head{display:flex;align-items:center;gap:6px;padding:2px 4px 0 0}
+.ss-tag{flex:1;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.ss-row{display:flex;align-items:center;gap:6px;padding:2px 8px 2px 22px}
+.blk-ss .blk-num{color:var(--gold)}
+.blk-ss .inl{background:var(--surface)}
+.pcard.dragging,.blk.dragging,.opt.dragging{opacity:.35}
+.pcard.drag-over,.blk.drag-over,.opt.drag-over{box-shadow:inset 0 2px 0 var(--gold-dim)}
+
 /* WORKOUT PANEL */
 .workout-panel{background:#f2ede0;border:0 solid #ddd2b0;border-radius:10px;margin:0 12px;overflow:hidden;max-height:0;transition:max-height .4s ease;font-family:'Courier New',Courier,monospace}
 .workout-panel.open{max-height:4000px;border-width:1px;margin:0 12px 12px}
@@ -321,7 +356,9 @@ button{font-family:inherit}
 
 /* Phones: 16px inputs stop iOS from zooming in on focus */
 @media (max-width:600px){
-  .input,.select,.modal-input,.reflection-area{font-size:16px}
+  .input,.select,.modal-input,.reflection-area,.inl{font-size:16px}
+  .inl.sec{font-size:16px;letter-spacing:.06em}
+  .inl.pcard-name{font-size:20px}
 }
 @media (max-width:360px){
   .date-day{font-size:26px}
@@ -460,51 +497,50 @@ button{font-family:inherit}
       <div id="sp-habits" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Habits</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="settingsHabitList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="settingsNewHabit" placeholder="New habit..." onkeydown="if(event.key==='Enter')settingsAddHabit()">
               <select class="select" id="settingsNewHabitGroup"></select>
               <button class="btn btn-add" onclick="settingsAddHabit()">Add</button>
             </div>
-          </div>
-          <div class="card-foot">
             <div class="btn-row">
               <button class="btn" onclick="pauseAllHabits()">Pause all habits</button>
               <button class="btn" onclick="resumeAllHabits()">Resume all habits</button>
             </div>
           </div>
+          <div id="settingsHabitList"></div>
         </section>
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Groups</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="settingsGroupList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="newGroupInput" placeholder="New group..." onkeydown="if(event.key==='Enter')addCustomGroup()">
               <button class="btn btn-add" onclick="addCustomGroup()">Add</button>
             </div>
           </div>
+          <div id="settingsGroupList"></div>
         </section>
       </div>
 
       <div id="sp-questions" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Reflection questions</h2></div>
-          <div id="settingsQuestionList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="newQuestionInput" placeholder="New question..." onkeydown="if(event.key==='Enter')addQuestion()">
               <button class="btn btn-add" onclick="addQuestion()">Add</button>
             </div>
           </div>
+          <div id="settingsQuestionList"></div>
         </section>
       </div>
 
       <div id="sp-workout" class="spage hidden">
+        <div class="tabs wp-set-season" id="wpSettingsSeason"></div>
+        <p class="sheet-context" id="wpSettingsContext"></p>
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Cycle slots</h2><span class="card-aside">Drag to reorder</span></div>
-          <div id="wpSettingsCycle"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewSlotName" placeholder="Slot name..." onkeydown="if(event.key==='Enter')wpSettingsAddSlot()">
               <select class="select" id="wpNewSlotGroup">
@@ -514,36 +550,37 @@ button{font-family:inherit}
               <button class="btn btn-add" onclick="wpSettingsAddSlot()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsCycle"></div>
         </section>
         <section class="card flush">
-          <div class="card-head"><h2 class="card-title">Gym presets</h2></div>
-          <div id="wpSettingsGym"></div>
-          <div class="card-foot">
+          <div class="card-head"><h2 class="card-title">Gym presets</h2><span class="card-aside">Edit in the card</span></div>
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewGymName" placeholder="Preset name..." onkeydown="if(event.key==='Enter')wpSettingsAddGym()">
               <button class="btn btn-add" onclick="wpSettingsAddGym()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsGym" class="pcards"></div>
         </section>
         <section class="card flush">
-          <div class="card-head"><h2 class="card-title">Cardio presets</h2></div>
-          <div id="wpSettingsCardio"></div>
-          <div class="card-foot">
+          <div class="card-head"><h2 class="card-title">Cardio presets</h2><span class="card-aside">Edit in the card</span></div>
+          <div class="card-tools">
             <div class="add-row">
               <input class="input" id="wpNewCardioName" placeholder="Preset name..." onkeydown="if(event.key==='Enter')wpSettingsAddCardio()">
               <button class="btn btn-add" onclick="wpSettingsAddCardio()">Add</button>
             </div>
           </div>
+          <div id="wpSettingsCardio" class="pcards"></div>
         </section>
       </div>
 
       <div id="sp-months" class="spage hidden">
         <section class="card flush">
           <div class="card-head"><h2 class="card-title">Your months</h2></div>
-          <div id="monthList"></div>
-          <div class="card-foot">
+          <div class="card-tools">
             <button class="btn btn-add btn-block" onclick="openAddMonth()">+ Add month</button>
           </div>
+          <div id="monthList"></div>
         </section>
       </div>
 
@@ -1259,6 +1296,7 @@ function renderHabits(){
         <div class="habit-check" data-check-id="${h.id}">${done?'✓':''}</div>
         <div class="habit-name">${esc(h.name)}</div>
         ${metaHtml}
+        <span class="habit-expand" aria-hidden="true"></span>
       </div>`;
     });
     html+='</section>';
@@ -1779,15 +1817,15 @@ window.wpSetSeason = function(s){
 function wpBlocksHTML(blocks, presetName){
   let h='';
   (blocks||[]).forEach(b=>{
-    if(b.type==='label') h+=`<div class="wp-ex-label">${b.text}</div>`;
-    else if(b.type==='single') h+=`<div class="wp-ex-single">${b.text}</div>`;
-    else if(b.type==='pair') h+=`<div class="wp-ex-pair"><span>${b.a}</span><span>${b.b}</span></div>`;
+    if(b.type==='label') h+=`<div class="wp-ex-label">${esc(b.text)}</div>`;
+    else if(b.type==='single') h+=`<div class="wp-ex-single">${esc(b.text)}</div>`;
+    else if(b.type==='pair') h+=`<div class="wp-ex-pair"><span>${esc(b.a)}</span><span>${esc(b.b)}</span></div>`;
     else if(b.type==='divider') h+=`<div class="wp-divider"></div>`;
     else if(b.type==='warmup-pick'){
       const cur=localStorage.getItem('wp-'+presetName);
-      h+=`<div class="wp-warmup-pick" data-wpkey="wp-${presetName}">
-        <div class="wp-wp-option${cur==='sled'?' wp-sel':''}" data-val="sled" data-wpkey="wp-${presetName}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Sled</span></div>
-        <div class="wp-wp-option${cur==='handstand'?' wp-sel':''}" data-val="handstand" data-wpkey="wp-${presetName}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Handstand</span></div>
+      h+=`<div class="wp-warmup-pick" data-wpkey="wp-${esc(presetName)}">
+        <div class="wp-wp-option${cur==='sled'?' wp-sel':''}" data-val="sled" data-wpkey="wp-${esc(presetName)}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Sled</span></div>
+        <div class="wp-wp-option${cur==='handstand'?' wp-sel':''}" data-val="handstand" data-wpkey="wp-${esc(presetName)}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Handstand</span></div>
       </div>`;
     }
   });
@@ -1831,9 +1869,9 @@ function renderWorkoutPanel(){
       dropHTML = `<div class="wp-dd-label">Select workout</div><div class="wp-options">`;
       wpGymPresets.forEach(p=>{
         const isSel = sel===p.name;
-        dropHTML += `<div class="wp-option${isSel?' selected':''}" data-wp-preset="${p.name}" data-wp-slot="${slot.id}" data-wp-kind="gym">
+        dropHTML += `<div class="wp-option${isSel?' selected':''}" data-wp-preset="${esc(p.name)}" data-wp-slot="${slot.id}" data-wp-kind="gym">
           <div class="wp-radio"><div class="wp-radio-dot"></div></div>
-          <span class="wp-option-text">${p.name}</span>
+          <span class="wp-option-text">${esc(p.name)}</span>
         </div>`;
         if(p.blocks&&p.blocks.length) dropHTML+=`<div class="wp-sub-detail${isSel?' visible':''}">${wpBlocksHTML(p.blocks,p.name)}</div>`;
       });
@@ -1842,14 +1880,14 @@ function renderWorkoutPanel(){
       dropHTML = `<div class="wp-dd-label">Select type</div><div class="wp-options">`;
       wpCardioPresets.forEach(p=>{
         const isSel = sel===p.name;
-        dropHTML += `<div class="wp-option${isSel?' selected':''}" data-wp-preset="${p.name}" data-wp-slot="${slot.id}" data-wp-kind="cardio">
+        dropHTML += `<div class="wp-option${isSel?' selected':''}" data-wp-preset="${esc(p.name)}" data-wp-slot="${slot.id}" data-wp-kind="cardio">
           <div class="wp-radio"><div class="wp-radio-dot"></div></div>
-          <span class="wp-option-text">${p.name}</span>
+          <span class="wp-option-text">${esc(p.name)}</span>
         </div>`;
         if(isSel&&p.options&&p.options.length){
           dropHTML+=`<div class="wp-sub-detail visible"><div class="wp-dd-label" style="margin-bottom:4px">What did you do?</div><div class="wp-checks">`;
           p.options.forEach(act=>{
-            dropHTML+=`<div class="wp-check-option${checks.includes(act)?' checked':''}" data-wp-act="${act}" data-wp-slot="${slot.id}"><div class="wp-checkbox">${SVG_CHECK}</div><span class="wp-check-text">${act}</span></div>`;
+            dropHTML+=`<div class="wp-check-option${checks.includes(act)?' checked':''}" data-wp-act="${esc(act)}" data-wp-slot="${slot.id}"><div class="wp-checkbox">${SVG_CHECK}</div><span class="wp-check-text">${esc(act)}</span></div>`;
           });
           dropHTML+=`</div></div>`;
         }
@@ -1863,8 +1901,8 @@ function renderWorkoutPanel(){
         <div class="wp-circle" data-wp-toggle="${slot.id}">${SVG_CHECK}</div>
         <span class="wp-num">${numStr}</span>
         <div class="wp-name-wrap">
-          <span class="wp-name">${slot.name}</span>
-          ${subLabel?`<span class="wp-sub">${subLabel}</span>`:''}
+          <span class="wp-name">${esc(slot.name)}</span>
+          ${subLabel?`<span class="wp-sub">${esc(subLabel)}</span>`:''}
         </div>
         ${hasChevron?`<div data-wp-expand="${slot.id}">${SVG_CHEVRON}</div>`:''}
       </div>
@@ -2224,40 +2262,74 @@ function renderSettingsQuestions(){
 }
 
 // ── WORKOUT SETTINGS ──
+// Presets are edited in place: each gym preset is a card listing its blocks in order
+// (sections, exercises, supersets) and each cardio preset a card listing its activities.
+// Edits write the same arrays as before; nothing about their shape changes.
 function renderWpSettings(){
+  const cap=wpSeason.charAt(0).toUpperCase()+wpSeason.slice(1);
+  document.getElementById('wpSettingsSeason').innerHTML=['winter','summer'].map(x=>
+    `<button class="seg-btn${x===wpSeason?' active':''}" onclick="wpSettingsSeason('${x}')">${x==='winter'?'❄ Winter':'☀ Summer'}</button>`).join('');
+  document.getElementById('wpSettingsContext').textContent=`Editing the ${cap} setup. Changing season here also switches the workout panel on Today.`;
   renderWpSettingsCycle();
   renderWpSettingsGym();
   renderWpSettingsCardio();
 }
+window.wpSettingsSeason=function(s){
+  if(s===wpSeason) return;
+  wpSetSeason(s);
+  renderWpSettings();
+};
 
-function wpSettingsRow(sid,name,sub,editCall,delCall){
-  return `<div class="srow" data-sid="${sid}">
-    <span class="drag" title="Drag to reorder">${ICON.grip}</span>
-    <div class="srow-main"><div class="srow-name">${esc(name)}</div>${sub?`<div class="srow-sub">${esc(sub)}</div>`:''}</div>
-    <button class="ibtn" title="Edit" aria-label="Edit" onclick="${editCall}">${ICON.edit}</button>
-    <button class="ibtn danger" title="Delete" aria-label="Delete" onclick="${delCall}">${ICON.del}</button>
-  </div>`;
+// Reads an inline field; an emptied field falls back to its previous value
+function wpFieldValue(el,prev){
+  const v=el.value.trim();
+  if(!v){ el.value=prev; return null; }
+  return v;
+}
+// Keep this season's slot selections pointing at a preset after it is renamed
+function wpRenameSelections(oldName,newName){
+  let changed=false;
+  Object.keys(wpSel).forEach(k=>{ if(wpSel[k]===oldName){ wpSel[k]=newName; changed=true; } });
+  if(changed) WSS(WK.sel,wpSel);
+}
+// Focuses the nth-from-last field matching sel, e.g. the block just added
+function wpFocusField(sel,fromEnd){
+  const els=document.querySelectorAll(sel);
+  const el=els[els.length-fromEnd];
+  if(el){ el.focus(); el.select(); el.scrollIntoView({block:'center',behavior:'smooth'}); }
 }
 
+// Cycle slots
 function renderWpSettingsCycle(){
-  const el = document.getElementById('wpSettingsCycle');
-  el.innerHTML = wpCycle.map(s=>wpSettingsRow(s.id,s.name,s.group==='gym'?'Gym':s.group==='cardio'?'Cardio':s.group,`wpEditSlot(${s.id})`,`wpDelSlot(${s.id})`)).join('');
+  const el=document.getElementById('wpSettingsCycle');
+  if(!wpCycle.length){ el.innerHTML='<div class="srow empty muted">No slots yet</div>'; return; }
+  el.innerHTML=wpCycle.map(s=>`<div class="srow" data-sid="${s.id}">
+    <span class="drag" title="Drag to reorder">${ICON.grip}</span>
+    <input class="inl" value="${esc(s.name)}" aria-label="Slot name" onchange="wpSetSlotName(${s.id},this)">
+    <select class="select sm" aria-label="Slot type" onchange="wpSetSlotGroup(${s.id},this)">
+      <option value="gym"${s.group==='gym'?' selected':''}>Gym</option>
+      <option value="cardio"${s.group==='cardio'?' selected':''}>Cardio</option>
+    </select>
+    <button class="ibtn danger" title="Delete" aria-label="Delete slot" onclick="wpDelSlot(${s.id})">${ICON.del}</button>
+  </div>`).join('');
   initSortable(el, '.srow[data-sid]', (srcId,tgtId)=>{
     const si=wpCycle.findIndex(x=>x.id==srcId), ti=wpCycle.findIndex(x=>x.id==tgtId);
     const [m]=wpCycle.splice(si,1); wpCycle.splice(ti,0,m);
-    WSS(WK.cycle,wpCycle); renderWpSettingsCycle();
+    WSS(WK.cycle,wpCycle); renderWpSettingsCycle(); renderWorkoutPanel();
   });
 }
-window.wpEditSlot = function(id){
-  const s=wpCycle.find(x=>x.id===id); if(!s)return;
-  const name=prompt('Slot name:',s.name); if(name===null)return;
-  const group=prompt('Group (gym/cardio):',s.group); if(group===null)return;
-  if(name.trim()) s.name=name.trim();
-  if(group==='gym'||group==='cardio') s.group=group;
-  WSS(WK.cycle,wpCycle); renderWpSettingsCycle(); renderWorkoutPanel();
+window.wpSetSlotName=function(id,el){
+  const s=wpCycle.find(x=>x.id===id); if(!s) return;
+  const v=wpFieldValue(el,s.name); if(!v||v===s.name) return;
+  s.name=v; WSS(WK.cycle,wpCycle); renderWorkoutPanel();
+};
+window.wpSetSlotGroup=function(id,el){
+  const s=wpCycle.find(x=>x.id===id); if(!s) return;
+  s.group=el.value; WSS(WK.cycle,wpCycle); renderWorkoutPanel();
 };
 window.wpDelSlot = function(id){
-  if(!confirm('Remove this slot?'))return;
+  const s=wpCycle.find(x=>x.id===id);
+  if(!s||!confirm(`Remove the slot "${s.name}"?`))return;
   wpCycle=wpCycle.filter(x=>x.id!==id);
   WSS(WK.cycle,wpCycle); renderWpSettingsCycle(); renderWorkoutPanel();
 };
@@ -2271,62 +2343,205 @@ window.wpSettingsAddSlot = function(){
   renderWpSettingsCycle(); renderWorkoutPanel();
 };
 
-function renderWpSettingsGym(){
-  const el=document.getElementById('wpSettingsGym');
-  el.innerHTML=wpGymPresets.map((p,i)=>wpSettingsRow(i,p.name,'',`wpEditGymPreset(${i})`,`wpDelGymPreset(${i})`)).join('');
-  initSortable(el,'.srow[data-sid]',(si,ti)=>{
-    const sii=parseInt(si),tii=parseInt(ti);
-    const [m]=wpGymPresets.splice(sii,1); wpGymPresets.splice(tii,0,m);
-    WSS(WK.gymPresets,wpGymPresets); renderWpSettingsGym(); renderWorkoutPanel();
+// Card header shared by gym and cardio presets
+function wpCardHead(kind,i,name,meta){
+  return `<div class="pcard-head">
+    <span class="drag" title="Drag to reorder">${ICON.grip}</span>
+    <input class="inl pcard-name" value="${esc(name)}" aria-label="Preset name" onchange="wpSetPresetName('${kind}',${i},this)">
+    <span class="pcard-meta">${meta}</span>
+    <button class="ibtn danger" title="Delete preset" aria-label="Delete preset" onclick="wpDelPreset('${kind}',${i})">${ICON.del}</button>
+  </div>`;
+}
+function wpPresets(kind){ return kind==='gym'?wpGymPresets:wpCardioPresets; }
+function wpSavePresets(kind){
+  if(kind==='gym'){ WSS(WK.gymPresets,wpGymPresets); renderWpSettingsGym(); }
+  else { WSS(WK.cardioPresets,wpCardioPresets); renderWpSettingsCardio(); }
+  renderWorkoutPanel();
+}
+window.wpSetPresetName=function(kind,i,el){
+  const p=wpPresets(kind)[i]; if(!p) return;
+  const v=wpFieldValue(el,p.name); if(!v||v===p.name) return;
+  wpRenameSelections(p.name,v);
+  p.name=v;
+  WSS(kind==='gym'?WK.gymPresets:WK.cardioPresets,wpPresets(kind));
+  renderWorkoutPanel();
+};
+window.wpDelPreset=function(kind,i){
+  const list=wpPresets(kind), p=list[i];
+  if(!p||!confirm(`Delete the preset "${p.name}"?`)) return;
+  list.splice(i,1);
+  wpSavePresets(kind);
+};
+function wpSortPresets(el,kind){
+  initSortable(el,'.pcard[data-sid]',(si,ti)=>{
+    const list=wpPresets(kind);
+    const [m]=list.splice(parseInt(si),1); list.splice(parseInt(ti),0,m);
+    wpSavePresets(kind);
   });
 }
-window.wpEditGymPreset = function(i){
-  const p=wpGymPresets[i]; if(!p)return;
-  const name=prompt('Preset name:',p.name); if(name===null)return;
-  if(name.trim()) p.name=name.trim();
-  WSS(WK.gymPresets,wpGymPresets); renderWpSettingsGym(); renderWorkoutPanel();
+
+// Gym presets. Exercise slots are lettered in order; a superset's two exercises share
+// its letter (B1, B2), the usual gym notation.
+function wpSlotLetter(n){ return n<26?String.fromCharCode(65+n):String(n+1); }
+function wpGymBlocksHTML(p,i){
+  const blocks=p.blocks||[];
+  if(!blocks.length) return '<div class="pcard-empty">No exercises yet. Add one above.</div>';
+  let h='',n=0;
+  blocks.forEach((b,j)=>{
+    const del=(label)=>`<button class="ibtn sm danger" title="Remove" aria-label="Remove ${label}" onclick="wpDelBlock(${i},${j})">${ICON.del}</button>`;
+    if(b.type==='divider'){ h+='<div class="blk-div"></div>'; return; }
+    if(b.type==='label'){
+      h+=`<div class="blk blk-sec" data-sid="${j}">
+        <input class="inl sec" value="${esc(b.text)}" aria-label="Section name" onchange="wpSetBlock(${i},${j},'text',this)">
+        ${del('section')}
+      </div>`;
+      return;
+    }
+    const L=wpSlotLetter(n++);
+    if(b.type==='pair'){
+      h+=`<div class="blk blk-ss" data-sid="${j}">
+        <div class="ss-head"><span class="drag" title="Drag to reorder">${ICON.grip}</span><span class="ss-tag">Superset ${L}</span>${del('superset')}</div>
+        <div class="ss-row"><span class="blk-num">${L}1</span><input class="inl" value="${esc(b.a)}" aria-label="Superset ${L} first exercise" onchange="wpSetBlock(${i},${j},'a',this)"></div>
+        <div class="ss-row"><span class="blk-num">${L}2</span><input class="inl" value="${esc(b.b)}" aria-label="Superset ${L} second exercise" onchange="wpSetBlock(${i},${j},'b',this)"></div>
+      </div>`;
+    } else if(b.type==='single'){
+      h+=`<div class="blk blk-ex" data-sid="${j}">
+        <span class="drag" title="Drag to reorder">${ICON.grip}</span><span class="blk-num">${L}</span>
+        <input class="inl" value="${esc(b.text)}" aria-label="Exercise ${L}" onchange="wpSetBlock(${i},${j},'text',this)">
+        ${del('exercise')}
+      </div>`;
+    } else if(b.type==='warmup-pick'){
+      h+=`<div class="blk blk-ex" data-sid="${j}">
+        <span class="drag" title="Drag to reorder">${ICON.grip}</span><span class="blk-num">${L}</span>
+        <span class="blk-fixed">Pick on the day: Sled or Handstand</span>
+      </div>`;
+    }
+  });
+  return h;
+}
+function renderWpSettingsGym(){
+  const el=document.getElementById('wpSettingsGym');
+  el.innerHTML=wpGymPresets.map((p,i)=>{
+    const count=(p.blocks||[]).reduce((c,b)=>c+(b.type==='pair'?2:b.type==='single'||b.type==='warmup-pick'?1:0),0);
+    return `<div class="pcard" data-sid="${i}">
+      ${wpCardHead('gym',i,p.name,`${count} exercise${count===1?'':'s'}`)}
+      <div class="pcard-tools">
+        <button class="btn btn-add" onclick="wpAddBlock(${i},'single')">+ Exercise</button>
+        <button class="btn btn-add" onclick="wpAddBlock(${i},'pair')">+ Superset</button>
+        <button class="btn" onclick="wpAddBlock(${i},'label')">+ Section</button>
+      </div>
+      <div class="pcard-body">${wpGymBlocksHTML(p,i)}</div>
+    </div>`;
+  }).join('');
+  wpSortPresets(el,'gym');
+  el.querySelectorAll('.pcard').forEach(card=>{
+    const i=parseInt(card.dataset.sid);
+    initSortable(card.querySelector('.pcard-body'),'.blk[data-sid]',(si,ti)=>wpMoveBlock(i,parseInt(si),parseInt(ti)));
+  });
+}
+// Moves a block onto another block's position. Dropping above a section heading lands
+// before its divider too, so the exercise ends the previous section instead of sitting
+// between the divider and the heading.
+function wpMoveBlock(i,src,tgt){
+  const blocks=wpGymPresets[i]&&wpGymPresets[i].blocks; if(!blocks) return;
+  let to=tgt;
+  if(src>tgt&&blocks[tgt].type==='label'&&tgt>0&&blocks[tgt-1].type==='divider') to=tgt-1;
+  const [m]=blocks.splice(src,1);
+  blocks.splice(to,0,m);
+  wpSavePresets('gym');
+}
+window.wpSetBlock=function(i,j,field,el){
+  const b=wpGymPresets[i]&&wpGymPresets[i].blocks[j]; if(!b) return;
+  const v=wpFieldValue(el,b[field]); if(!v||v===b[field]) return;
+  b[field]=v;
+  WSS(WK.gymPresets,wpGymPresets); renderWorkoutPanel();
 };
-window.wpDelGymPreset = function(i){
-  if(!confirm('Delete this preset?'))return;
-  wpGymPresets.splice(i,1);
-  WSS(WK.gymPresets,wpGymPresets); renderWpSettingsGym(); renderWorkoutPanel();
+window.wpDelBlock=function(i,j){
+  const blocks=wpGymPresets[i]&&wpGymPresets[i].blocks; const b=blocks&&blocks[j]; if(!b) return;
+  const what=b.type==='pair'?`the superset "${b.a} + ${b.b}"`:b.type==='label'?`the section heading "${b.text}"`:`"${b.text}"`;
+  if(!confirm(`Remove ${what}?`)) return;
+  // A section heading takes its divider with it
+  if(b.type==='label'&&j>0&&blocks[j-1].type==='divider') blocks.splice(j-1,2);
+  else blocks.splice(j,1);
+  wpSavePresets('gym');
+};
+window.wpAddBlock=function(i,type){
+  const p=wpGymPresets[i]; if(!p) return;
+  if(!p.blocks) p.blocks=[];
+  if(type==='single') p.blocks.push({type:'single',text:'New exercise'});
+  else if(type==='pair') p.blocks.push({type:'pair',a:'Exercise 1',b:'Exercise 2'});
+  else { if(p.blocks.length) p.blocks.push({type:'divider'}); p.blocks.push({type:'label',text:'New section'}); }
+  wpSavePresets('gym');
+  // The new block is last in the card; a superset focuses its first exercise
+  wpFocusField(`#wpSettingsGym .pcard[data-sid="${i}"] .pcard-body .inl`,type==='pair'?2:1);
 };
 window.wpSettingsAddGym = function(){
   const name=document.getElementById('wpNewGymName').value.trim(); if(!name)return;
   wpGymPresets.push({name,blocks:[]});
-  WSS(WK.gymPresets,wpGymPresets);
   document.getElementById('wpNewGymName').value='';
-  renderWpSettingsGym(); renderWorkoutPanel();
+  wpSavePresets('gym');
 };
 
+// Cardio presets: each lists the activities you can tick off in the panel
 function renderWpSettingsCardio(){
   const el=document.getElementById('wpSettingsCardio');
-  el.innerHTML=wpCardioPresets.map((p,i)=>wpSettingsRow(i,p.name,(p.options||[]).join(', '),`wpEditCardioPreset(${i})`,`wpDelCardioPreset(${i})`)).join('');
-  initSortable(el,'.srow[data-sid]',(si,ti)=>{
-    const sii=parseInt(si),tii=parseInt(ti);
-    const [m]=wpCardioPresets.splice(sii,1); wpCardioPresets.splice(tii,0,m);
-    WSS(WK.cardioPresets,wpCardioPresets); renderWpSettingsCardio(); renderWorkoutPanel();
+  el.innerHTML=wpCardioPresets.map((p,i)=>{
+    const opts=p.options||[];
+    return `<div class="pcard" data-sid="${i}">
+      ${wpCardHead('cardio',i,p.name,`${opts.length} activit${opts.length===1?'y':'ies'}`)}
+      <div class="pcard-tools add-row">
+        <input class="input" id="wpNewOpt-${i}" placeholder="New activity..." onkeydown="if(event.key==='Enter')wpAddCardioOpt(${i})">
+        <button class="btn btn-add" onclick="wpAddCardioOpt(${i})">Add</button>
+      </div>
+      <div class="pcard-body">${opts.length?opts.map((o,j)=>`<div class="opt" data-sid="${j}">
+        <span class="drag" title="Drag to reorder">${ICON.grip}</span>
+        <input class="inl" value="${esc(o)}" aria-label="Activity" onchange="wpSetCardioOpt(${i},${j},this)">
+        <button class="ibtn sm danger" title="Remove" aria-label="Remove activity" onclick="wpDelCardioOpt(${i},${j})">${ICON.del}</button>
+      </div>`).join(''):'<div class="pcard-empty">No activities yet. Add one above.</div>'}</div>
+    </div>`;
+  }).join('');
+  wpSortPresets(el,'cardio');
+  el.querySelectorAll('.pcard').forEach(card=>{
+    const i=parseInt(card.dataset.sid);
+    initSortable(card.querySelector('.pcard-body'),'.opt[data-sid]',(si,ti)=>{
+      const opts=wpCardioPresets[i].options;
+      const [m]=opts.splice(parseInt(si),1); opts.splice(parseInt(ti),0,m);
+      wpSavePresets('cardio');
+    });
   });
 }
-window.wpEditCardioPreset = function(i){
-  const p=wpCardioPresets[i]; if(!p)return;
-  const name=prompt('Preset name:',p.name); if(name===null)return;
-  const opts=prompt('Activities (comma separated):',(p.options||[]).join(', ')); if(opts===null)return;
-  if(name.trim()) p.name=name.trim();
-  p.options=opts.split(',').map(s=>s.trim()).filter(Boolean);
-  WSS(WK.cardioPresets,wpCardioPresets); renderWpSettingsCardio(); renderWorkoutPanel();
+window.wpSetCardioOpt=function(i,j,el){
+  const p=wpCardioPresets[i]; if(!p||!p.options||p.options[j]==null) return;
+  const old=p.options[j];
+  const v=wpFieldValue(el,old); if(!v||v===old) return;
+  p.options[j]=v;
+  // Keep ticked activities in this season's slots pointing at the renamed activity
+  Object.keys(wpCardioChecks).forEach(sid=>{
+    if(wpSel[sid]===p.name) wpCardioChecks[sid]=(wpCardioChecks[sid]||[]).map(a=>a===old?v:a);
+  });
+  WSS(WK.cardioChecks,wpCardioChecks);
+  WSS(WK.cardioPresets,wpCardioPresets); renderWorkoutPanel();
 };
-window.wpDelCardioPreset = function(i){
-  if(!confirm('Delete this preset?'))return;
-  wpCardioPresets.splice(i,1);
-  WSS(WK.cardioPresets,wpCardioPresets); renderWpSettingsCardio(); renderWorkoutPanel();
+window.wpDelCardioOpt=function(i,j){
+  const p=wpCardioPresets[i]; if(!p||!p.options||p.options[j]==null) return;
+  if(!confirm(`Remove "${p.options[j]}" from ${p.name}?`)) return;
+  p.options.splice(j,1);
+  wpSavePresets('cardio');
+};
+window.wpAddCardioOpt=function(i){
+  const p=wpCardioPresets[i]; if(!p) return;
+  const input=document.getElementById('wpNewOpt-'+i);
+  const v=input.value.trim(); if(!v) return;
+  if(!p.options) p.options=[];
+  p.options.push(v);
+  wpSavePresets('cardio');
+  const again=document.getElementById('wpNewOpt-'+i); if(again) again.focus();
 };
 window.wpSettingsAddCardio = function(){
   const name=document.getElementById('wpNewCardioName').value.trim(); if(!name)return;
   wpCardioPresets.push({name,options:[]});
-  WSS(WK.cardioPresets,wpCardioPresets);
   document.getElementById('wpNewCardioName').value='';
-  renderWpSettingsCardio(); renderWorkoutPanel();
+  wpSavePresets('cardio');
 };
 
 // ── SCORING & DATA ──
