@@ -308,15 +308,16 @@ button{font-family:inherit}
 .wp-option.selected .wp-radio-dot{display:block}
 .wp-option-text{font-size:.75rem;color:#57503f;flex:1}
 .wp-option.selected .wp-option-text{color:#2a2620}
-.wp-sub-detail{display:none;flex-direction:column;gap:.2rem;padding:.45rem .55rem;background:#f7f1de;border-radius:4px;border:1px solid #e6dcc0;margin-top:.05rem}
+.wp-sub-detail{display:none;flex-direction:column;gap:.75rem;padding:.7rem .75rem;background:#f7f1de;border-radius:4px;border:1px solid #e6dcc0;margin-top:.05rem}
 .wp-sub-detail.visible{display:flex}
-.wp-ex-label{font-size:.52rem;color:#8a7f63;letter-spacing:.12em;text-transform:uppercase;margin-top:.15rem}
-.wp-ex-label:first-child{margin-top:0}
-.wp-ex-single{font-size:.72rem;color:#6f6650;padding-left:.8rem;position:relative;line-height:1.5}
-.wp-ex-single::before{content:"—";position:absolute;left:0;color:#a89b73}
-.wp-ex-pair{display:flex;gap:.35rem;font-size:.72rem;color:#6f6650;padding-left:.8rem;position:relative;line-height:1.5}
-.wp-ex-pair::before{content:"—";position:absolute;left:0;color:#a89b73}
-.wp-ex-pair span{flex:1}
+.wp-sec{display:flex;flex-direction:column;gap:.3rem}
+.wp-sec-title{font-size:.52rem;color:#8a7f63;letter-spacing:.14em;text-transform:uppercase}
+.wp-ex{font-size:.74rem;color:#3a3527;background:#fffdf6;border:1px solid #e6dcc0;border-radius:4px;padding:.38rem .6rem;line-height:1.35}
+.wp-ss{display:flex;background:#fffdf6;border:1px solid #e6dcc0;border-radius:4px;overflow:hidden}
+.wp-ss-n{width:1.7rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#8a7f63;background:#efe6cc;border-right:1px solid #e6dcc0}
+.wp-ss-ex{flex:1;display:grid;grid-template-columns:1fr 1fr;min-width:0}
+.wp-ss-ex span{padding:.38rem .6rem;font-size:.74rem;color:#3a3527;line-height:1.35}
+.wp-ss-ex span+span{border-left:1px solid #e6dcc0}
 .wp-warmup-pick{display:flex;gap:.35rem}
 .wp-wp-option{display:flex;align-items:center;gap:.35rem;padding:.28rem .5rem;border-radius:3px;border:1px solid #d3c7a0;cursor:pointer;font-size:.68rem;color:#6f6650;transition:all .15s}
 .wp-wp-option.wp-sel{background:#fffdf6;color:#3a3527;border-color:#c7b98d}
@@ -335,7 +336,6 @@ button{font-family:inherit}
 .wp-check-option.checked .wp-check-text{color:#2a2620}
 .wp-reset-row{text-align:center;margin-top:10px}
 .wp-reset-btn{background:none;border:1px solid #d3c7a0;color:#8a7f63;font-family:'Courier New',Courier,monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;padding:.55rem 1.2rem;border-radius:4px;cursor:pointer}
-.wp-divider{height:1px;background:#e6dcc0;margin:.15rem 0}
 
 /* TOAST */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);opacity:0;background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:10px 20px;color:var(--green-bright);font-size:13px;transition:transform .3s,opacity .3s;z-index:300;white-space:nowrap;pointer-events:none}
@@ -449,7 +449,7 @@ button{font-family:inherit}
       <details class="explain">
         <summary>How scoring works</summary>
         <div class="explain-body">
-          Each habit done = +1 point. Each miss in a row doubles — 1st miss = −1, 2nd = −2, 3rd = −4, 4th = −7, then it stays at −7 until you do it again.<br>
+          Each habit done = +1 point. Each miss in a row costs one more point — 1st miss = −1, 2nd = −2, 3rd = −3, and it keeps growing with no limit until you do it again.<br>
           <strong style="color:var(--green-bright);font-weight:500">A day counts as positive</strong> when total points are above 0.<br>
           <strong style="color:var(--red-bright);font-weight:500">A day counts as negative</strong> when total points are 0 or below.<br>
           Only Monday–Thursday are tracked. Goal: +4 per week.
@@ -1133,13 +1133,18 @@ function getDailyScore(d){
 }
 
 function isTrackingDay(d){ const dow=d.getDay(); return dow>=1&&dow<=4; }
+// The workout is tracked every day of the week; everything else Mon–Thu only.
+const WORKOUT_ID='h_m12';
+function isTrackedFor(habitId,d){ return habitId===WORKOUT_ID || isTrackingDay(d); }
 
 function renderDailyScore(){
   if(!isTrackingDay(currentDate)){
     document.getElementById('dailyScoreNum').textContent='—';
     document.getElementById('dailyScoreNum').style.color='var(--text-dim)';
     document.getElementById('dailyFill').style.width='0%';
-    document.getElementById('dailyMeta').textContent='Rest day — no tracking Fri, Sat or Sun';
+    const dp=getDailyPoints(currentDate);
+    const pts=dp.total?` · <span style="color:${dp.points>0?'var(--green-bright)':'var(--red-bright)'}">${dp.points>0?'+':''}${dp.points} pts</span>`:'';
+    document.getElementById('dailyMeta').innerHTML=`Rest day — only the workout is tracked${pts}`;
     return;
   }
   const s=getDailyScore(currentDate);
@@ -1193,34 +1198,33 @@ function getMissStreakBefore(habitId, refDate){
   let streak=0, d=new Date(refDate);
   d.setDate(d.getDate()-1);
   let guard=0;
-  const MAX_STREAK=3; // doubling reaches the -7 cap here, so counting further is wasted
-  while(guard<MAX_STREAK+30){ // small buffer for skipped weekends, still tightly bounded
+  // No cap: the streak runs back to the last completion or the reset point.
+  // The guard only protects against a runaway loop (~3 years of calendar days).
+  while(guard<1100){
     if(d<ESCALATION_START) break; // don't count anything before the reset point
     guard++;
-    if(!isTrackingDay(d)){ d.setDate(d.getDate()-1); continue; }
+    if(!isTrackedFor(habitId,d)){ d.setDate(d.getDate()-1); continue; }
     const day=getDay(d);
     if(day.habits && day.habits[habitId]) break; // completed — streak ends
     streak++;
-    if(streak>=MAX_STREAK) break; // stop escalating past the cap
     d.setDate(d.getDate()-1);
   }
-  return Math.min(streak, MAX_STREAK);
+  return streak;
 }
 
-// Penalty for a habit if missed on `date`: doubles with each consecutive prior
-// miss (1, 2, 4, ...) and is capped at -7 — one point per day of the week — so a
-// long-neglected habit escalates fast but doesn't blow out the score.
+// Penalty for a habit if missed on `date`: one more point for every consecutive
+// prior miss (1, 2, 3, ...) with no cap, so the only way to stop it growing is to
+// actually do the habit.
 function getMissPenalty(habitId, date){
-  return Math.min(2 ** getMissStreakBefore(habitId, date), 7);
+  return getMissStreakBefore(habitId, date) + 1;
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
 // per missed habit based on how many tracking days in a row it's been skipped.
 function getDailyPoints(d){
-  if(!isTrackingDay(d)) return {points:0, total:0};
   const day=getDay(d);
   let points=0;
-  const active=currentMonth.habits.filter(h=>!h.paused);
+  const active=currentMonth.habits.filter(h=>!h.paused&&isTrackedFor(h.id,d));
   const total=active.length;
   active.forEach(h=>{
     const done = day.habits && day.habits[h.id];
@@ -1250,10 +1254,19 @@ function renderHabits(){
       return;
     }
     const done=day.habits&&day.habits[workoutHabit.id];
+    const isPaused=!!workoutHabit.paused;
+    const {streak,doneToday}=getStreak(workoutHabit.id);
+    const missPenalty=!done&&!isPaused?getMissPenalty(workoutHabit.id,currentDate):0;
+    let metaHtml='';
+    if(isPaused) metaHtml=`<span class="habit-meta">Paused</span>`;
+    else {
+      if(streak>=1) metaHtml+=`<span class="habit-meta streak${doneToday?'':' at-risk'}" title="Streak">🔥 ${streak}</span>`;
+      if(!done&&missPenalty>=2) metaHtml+=`<span class="habit-meta penalty" title="Penalty if missed">−${missPenalty}</span>`;
+    }
     list.innerHTML=`<section class="card flush">
       <div class="card-head" style="margin-bottom:6px"><h2 class="card-title">Rest day</h2></div>
-      <p class="card-note">Other habits aren't tracked, but you can still log a workout.</p>
-      ${workoutRowHTML(workoutHabit,done)}
+      <p class="card-note">Other habits rest Fri–Sun, but the workout counts every day.</p>
+      ${workoutRowHTML(workoutHabit,done,metaHtml,isPaused)}
     </section>`;
     if(workoutPanelOpen) renderWorkoutPanel();
     return;
@@ -1744,7 +1757,7 @@ const WP_DEFAULT_CYCLE_SUMMER = [
 ];
 const WP_DEFAULT_CYCLE_WINTER = WP_DEFAULT_CYCLE_SUMMER; // winter mirrors summer for now
 
-const WP_DEFAULT_SEL_SUMMER = {1:'Outdoor',2:'Zone 5',3:'Outdoor',4:'Zone 2',5:'Weighted',6:'Weighted run'};
+const WP_DEFAULT_SEL_SUMMER = {1:'Outdoor',2:'Zone 5',3:'Outdoor',4:'Zone 2',5:'Weighted',6:'Weighted Cardio'};
 const WP_DEFAULT_SEL_WINTER = WP_DEFAULT_SEL_SUMMER; // winter mirrors summer for now
 
 const WP_DEFAULT_GYM_SUMMER = [
@@ -1756,7 +1769,7 @@ const WP_DEFAULT_GYM_WINTER = WP_DEFAULT_GYM_SUMMER; // winter mirrors summer fo
 const WP_DEFAULT_CARDIO_SUMMER = [
   {name:'Zone 2',options:['Running','Shadow boxing','Rope-skipping','Stair-master','Biking','Elliptical','Cross country skiing']},
   {name:'Zone 5',options:['Running','Shadow boxing','Rope-skipping','Sled','Stair-master','Bike / assault bike']},
-  {name:'Weighted run',options:['Weighted vest run','Sled drag run','Rucking']},
+  {name:'Weighted Cardio',options:['Rucking','Running','Shadow boxing','Rope-skipping']},
 ];
 const WP_DEFAULT_CARDIO_WINTER = WP_DEFAULT_CARDIO_SUMMER; // winter mirrors summer for now
 
@@ -1775,6 +1788,27 @@ function wpLoadState(){
   wpCycle        = WLS(WK.cycle,null); if(!wpCycle){wpCycle=JSON.parse(JSON.stringify(defCycle));WSS(WK.cycle,wpCycle);}
   wpGymPresets   = WLS(WK.gymPresets,null); if(!wpGymPresets){wpGymPresets=JSON.parse(JSON.stringify(defGym));WSS(WK.gymPresets,wpGymPresets);}
   wpCardioPresets= WLS(WK.cardioPresets,null); if(!wpCardioPresets){wpCardioPresets=JSON.parse(JSON.stringify(defCardio));WSS(WK.cardioPresets,wpCardioPresets);}
+  wpMigratePresets();
+}
+
+// One-way fixes for presets already saved on devices/Firebase; safe to run repeatedly.
+function wpMigratePresets(){
+  const weighted=wpGymPresets.find(p=>p.name==='Weighted');
+  const normal=wpGymPresets.find(p=>p.name==='Normal');
+  if(weighted&&normal&&!(normal.blocks&&normal.blocks.length)){
+    normal.blocks=JSON.parse(JSON.stringify(weighted.blocks));
+    WSS(WK.gymPresets,wpGymPresets);
+  }
+  const wc=wpCardioPresets.find(p=>p.name==='Weighted run');
+  if(wc){
+    wc.name='Weighted Cardio';
+    const opts=(wc.options||[]).filter(o=>o!=='Weighted vest run'&&o!=='Sled drag run');
+    ['Running','Shadow boxing','Rope-skipping'].forEach(o=>{ if(!opts.includes(o)) opts.push(o); });
+    wc.options=opts;
+    WSS(WK.cardioPresets,wpCardioPresets);
+    Object.keys(wpSel).forEach(k=>{ if(wpSel[k]==='Weighted run') wpSel[k]='Weighted Cardio'; });
+    WSS(WK.sel,wpSel);
+  }
 }
 // Force reset workout state to new defaults if version changed
 const WP_VERSION = '5';
@@ -1816,18 +1850,28 @@ window.wpSetSeason = function(s){
 
 function wpBlocksHTML(blocks, presetName){
   let h='';
+  // Group blocks into sections at each label; dividers are implied by section breaks.
+  const secs=[];
   (blocks||[]).forEach(b=>{
-    if(b.type==='label') h+=`<div class="wp-ex-label">${esc(b.text)}</div>`;
-    else if(b.type==='single') h+=`<div class="wp-ex-single">${esc(b.text)}</div>`;
-    else if(b.type==='pair') h+=`<div class="wp-ex-pair"><span>${esc(b.a)}</span><span>${esc(b.b)}</span></div>`;
-    else if(b.type==='divider') h+=`<div class="wp-divider"></div>`;
-    else if(b.type==='warmup-pick'){
-      const cur=localStorage.getItem('wp-'+presetName);
-      h+=`<div class="wp-warmup-pick" data-wpkey="wp-${esc(presetName)}">
+    if(b.type==='label'||!secs.length) secs.push({title:b.type==='label'?b.text:'',items:[]});
+    if(b.type!=='label'&&b.type!=='divider') secs[secs.length-1].items.push(b);
+  });
+  secs.forEach(sec=>{
+    if(!sec.items.length) return;
+    h+=`<div class="wp-sec">${sec.title?`<div class="wp-sec-title">${esc(sec.title)}</div>`:''}`;
+    let n=0;
+    sec.items.forEach(b=>{
+      if(b.type==='single') h+=`<div class="wp-ex">${esc(b.text)}</div>`;
+      else if(b.type==='pair') h+=`<div class="wp-ss"><span class="wp-ss-n">${++n}</span><div class="wp-ss-ex"><span>${esc(b.a)}</span><span>${esc(b.b)}</span></div></div>`;
+      else if(b.type==='warmup-pick'){
+        const cur=localStorage.getItem('wp-'+presetName);
+        h+=`<div class="wp-warmup-pick" data-wpkey="wp-${esc(presetName)}">
         <div class="wp-wp-option${cur==='sled'?' wp-sel':''}" data-val="sled" data-wpkey="wp-${esc(presetName)}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Sled</span></div>
         <div class="wp-wp-option${cur==='handstand'?' wp-sel':''}" data-val="handstand" data-wpkey="wp-${esc(presetName)}"><div class="wp-wp-radio"><div class="wp-wp-dot"></div></div><span>Handstand</span></div>
       </div>`;
-    }
+      }
+    });
+    h+=`</div>`;
   });
   return h;
 }
