@@ -4,8 +4,24 @@
     {
       "name": "health-cycle",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8420"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8420"
+      ],
       "port": 8420
+    },
+    {
+      "name": "client",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8421",
+        "--directory",
+        "/Users/isakekelund/health-cycle-template"
+      ],
+      "port": 8421
     }
   ]
 }
