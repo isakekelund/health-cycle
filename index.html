@@ -589,6 +589,16 @@ button{font-family:inherit}
         <section class="card flush">
           <div class="action-row">
             <div class="srow-main">
+              <div class="srow-name">Miss penalty curve</div>
+              <div class="srow-sub" id="penaltyCurveSub"></div>
+            </div>
+            <div class="tabs" id="penaltyCurveSeg" style="flex-shrink:0;min-width:140px">
+              <button class="seg-btn" data-curve="linear" onclick="setPenaltyCurve('linear')">Linear</button>
+              <button class="seg-btn" data-curve="square" onclick="setPenaltyCurve('square')">x²</button>
+            </div>
+          </div>
+          <div class="action-row">
+            <div class="srow-main">
               <div class="srow-name">Reset miss penalties</div>
               <div class="srow-sub">Clears accumulated miss penalties and starts fresh. Logged habit data stays intact.</div>
             </div>
@@ -902,6 +912,7 @@ function listenToBaselines(){
   const watch=(path,apply)=>{ let first=true; onValue(ref(db,`users/${UID}/${path}`),snap=>{ if(first){first=false;return;} if(snap.exists()){ apply(snap.val()); refreshAfterRemoteChange(); } }); };
   watch('escalationStart',v=>{ ESCALATION_START=new Date(v); localStorage.setItem('hc-escalation-start',v); });
   watch('weekScoreStart',v=>{ WEEK_SCORE_START=new Date(v); localStorage.setItem('hc-week-score-start',v); });
+  watch('settings/penaltyCurve',v=>{ if(!PENALTY_CURVES.includes(v)) return; PENALTY_CURVE=v; localStorage.setItem('hc-penalty-curve',v); if(settingsPage==='data') renderPenaltyCurve(); });
 }
 function refreshAfterRemoteChange(){
   if(!currentMonthId) return;
@@ -972,6 +983,7 @@ async function loadApp(){
       const s=settingsSnap.val();
       if(s.groupOrder){habitGroupOrder=s.groupOrder;localStorage.setItem('hc-group-order',JSON.stringify(s.groupOrder));}
       if(s.groupLabels){localStorage.setItem('hc-group-labels',JSON.stringify(s.groupLabels));}
+      if(PENALTY_CURVES.includes(s.penaltyCurve)){PENALTY_CURVE=s.penaltyCurve;localStorage.setItem('hc-penalty-curve',s.penaltyCurve);}
     }
     if(workoutSnap.exists()){
       const wf=workoutSnap.val();
@@ -1317,11 +1329,14 @@ function getMissStreakBefore(habitId, refDate){
   return streak;
 }
 
-// Penalty for a habit if missed on `date`: one more point for every consecutive
-// prior miss (1, 2, 3, ...) with no cap, so the only way to stop it growing is to
-// actually do the habit.
+// Penalty for a habit if missed on `date`, where n is the miss number in the
+// current streak: linear gives n (1, 2, 3, ...), square gives n² (1, 4, 9, ...).
+// No cap, so the only way to stop it growing is to actually do the habit.
+const PENALTY_CURVES=['linear','square'];
+let PENALTY_CURVE=PENALTY_CURVES.includes(localStorage.getItem('hc-penalty-curve'))?localStorage.getItem('hc-penalty-curve'):'linear';
 function getMissPenalty(habitId, date){
-  return getMissStreakBefore(habitId, date) + 1;
+  const n=getMissStreakBefore(habitId, date) + 1;
+  return PENALTY_CURVE==='square' ? n*n : n;
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
@@ -2150,7 +2165,7 @@ window.wpResetCycle = function(){
 let habitGroupOrder = JSON.parse(localStorage.getItem('hc-group-order')||'null') || ['morning','evening','general'];
 function saveGroupSettings(){
   if(!_appLoaded) return;
-  fbSet('settings',{groupOrder:habitGroupOrder,groupLabels:JSON.parse(localStorage.getItem('hc-group-labels')||'{}')});
+  fbSet('settings',{groupOrder:habitGroupOrder,groupLabels:JSON.parse(localStorage.getItem('hc-group-labels')||'{}'),penaltyCurve:PENALTY_CURVE});
 }
 
 const SETTINGS_PAGES={
@@ -2192,7 +2207,7 @@ function renderSettingsMenu(){
     ['questions','Reflection questions',m?`${currentMonth.questions.length} questions`:'Open a month first'],
     ['workout','Workout','Cycle slots, gym and cardio presets'],
     ['months','Month archive',`${monthList.length} month${monthList.length===1?'':'s'} · add or remove`],
-    ['data','Scoring & data','Reset miss penalties or weekly score, export, clear data'],
+    ['data','Scoring & data','Miss penalty curve, resets, export, clear data'],
     ['why','Why a habit tracker',''],
   ];
   document.getElementById('settingsMenu').innerHTML=rows.map(([p,name,sub])=>`
@@ -2696,7 +2711,24 @@ function renderDataPage(){
   const m=monthList.find(x=>x.id===currentMonthId);
   document.querySelectorAll('.data-month-name').forEach(el=>el.textContent=m?m.name:'the open month');
   document.querySelectorAll('[data-needs-month]').forEach(b=>b.disabled=!currentMonthId);
+  renderPenaltyCurve();
 }
+
+function renderPenaltyCurve(){
+  document.querySelectorAll('#penaltyCurveSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.curve===PENALTY_CURVE));
+  document.getElementById('penaltyCurveSub').textContent=PENALTY_CURVE==='square'
+    ?'Consecutive misses cost 1, 4, 9, 16, ... points.'
+    :'Consecutive misses cost 1, 2, 3, 4, ... points.';
+}
+
+window.setPenaltyCurve=function(curve){
+  if(!PENALTY_CURVES.includes(curve)||curve===PENALTY_CURVE) return;
+  PENALTY_CURVE=curve;
+  localStorage.setItem('hc-penalty-curve',curve);
+  saveGroupSettings();
+  renderPenaltyCurve();
+  if(currentMonthId){ renderHabits(); renderDailyScore(); if(activeTab==='overview') renderOverview(); }
+};
 
 window.confirmClearAllData=function(){
   const m=monthList.find(x=>x.id===currentMonthId);
