@@ -592,10 +592,18 @@ button{font-family:inherit}
               <div class="srow-name">Default miss penalty curve</div>
               <div class="srow-sub" id="penaltyCurveSub"></div>
             </div>
-            <div class="tabs" id="penaltyCurveSeg" style="flex-shrink:0;min-width:140px">
+            <div class="tabs" id="penaltyCurveSeg" style="flex-shrink:0;min-width:190px">
               <button class="seg-btn" data-curve="linear" onclick="setPenaltyCurve('linear')">Linear</button>
+              <button class="seg-btn" data-curve="double" onclick="setPenaltyCurve('double')">Doubling</button>
               <button class="seg-btn" data-curve="square" onclick="setPenaltyCurve('square')">x²</button>
             </div>
+          </div>
+          <div class="action-row">
+            <div class="srow-main">
+              <div class="srow-name">Penalty cap</div>
+              <div class="srow-sub" id="penaltyCapSub"></div>
+            </div>
+            <input class="modal-input" id="penaltyCapInput" type="number" min="0" step="1" inputmode="numeric" placeholder="No cap" aria-label="Penalty cap" style="width:96px;margin:0;flex-shrink:0" onchange="setPenaltyCap(this.value)">
           </div>
           <div class="action-row">
             <div class="srow-main">
@@ -651,6 +659,7 @@ button{font-family:inherit}
     <select class="modal-input" id="editSettingsHabitCurve" aria-label="Miss penalty curve">
       <option value="">Miss penalty: use default</option>
       <option value="linear">Miss penalty: linear (1, 2, 3, ...)</option>
+      <option value="double">Miss penalty: doubling (1, 2, 4, 8, ...)</option>
       <option value="square">Miss penalty: x² (1, 4, 9, ...)</option>
     </select>
     <div class="modal-btns">
@@ -918,6 +927,7 @@ function listenToBaselines(){
   watch('escalationStart',v=>{ ESCALATION_START=new Date(v); localStorage.setItem('hc-escalation-start',v); });
   watch('weekScoreStart',v=>{ WEEK_SCORE_START=new Date(v); localStorage.setItem('hc-week-score-start',v); });
   watch('settings/penaltyCurve',v=>{ if(!PENALTY_CURVES.includes(v)) return; PENALTY_CURVE=v; localStorage.setItem('hc-penalty-curve',v); if(settingsPage==='data') renderPenaltyCurve(); });
+  watch('settings/penaltyCap',v=>{ if(typeof v!=='number'||v<0) return; PENALTY_CAP=v; localStorage.setItem('hc-penalty-cap',String(v)); if(settingsPage==='data') renderPenaltyCurve(); });
 }
 function refreshAfterRemoteChange(){
   if(!currentMonthId) return;
@@ -989,6 +999,7 @@ async function loadApp(){
       if(s.groupOrder){habitGroupOrder=s.groupOrder;localStorage.setItem('hc-group-order',JSON.stringify(s.groupOrder));}
       if(s.groupLabels){localStorage.setItem('hc-group-labels',JSON.stringify(s.groupLabels));}
       if(PENALTY_CURVES.includes(s.penaltyCurve)){PENALTY_CURVE=s.penaltyCurve;localStorage.setItem('hc-penalty-curve',s.penaltyCurve);}
+      if(typeof s.penaltyCap==='number'&&s.penaltyCap>=0){PENALTY_CAP=s.penaltyCap;localStorage.setItem('hc-penalty-cap',String(s.penaltyCap));}
     }
     if(workoutSnap.exists()){
       const wf=workoutSnap.val();
@@ -1337,7 +1348,11 @@ function getMissStreakBefore(habitId, refDate){
 // Penalty for a habit if missed on `date`, where n is the miss number in the
 // current streak: linear gives n (1, 2, 3, ...), square gives n² (1, 4, 9, ...).
 // No cap, so the only way to stop it growing is to actually do the habit.
-const PENALTY_CURVES=['linear','square'];
+const PENALTY_CURVES=['linear','double','square'];
+const CURVE_LABEL={linear:'linear',double:'doubling',square:'x²'};
+const CURVE_SERIES={linear:'1, 2, 3, 4, ...',double:'1, 2, 4, 8, ...',square:'1, 4, 9, 16, ...'};
+// Optional cap on the penalty for a single miss. 0 means no cap.
+let PENALTY_CAP=Math.max(0,parseInt(localStorage.getItem('hc-penalty-cap')||'0',10)||0);
 let PENALTY_CURVE=PENALTY_CURVES.includes(localStorage.getItem('hc-penalty-curve'))?localStorage.getItem('hc-penalty-curve'):'linear';
 // Each habit can override the default curve with its own `curve` field.
 function getHabitCurve(habitId){
@@ -1346,7 +1361,9 @@ function getHabitCurve(habitId){
 }
 function getMissPenalty(habitId, date){
   const n=getMissStreakBefore(habitId, date) + 1;
-  return getHabitCurve(habitId)==='square' ? n*n : n;
+  const curve=getHabitCurve(habitId);
+  const p = curve==='square' ? n*n : curve==='double' ? Math.pow(2,n-1) : n;
+  return PENALTY_CAP>0 ? Math.min(p,PENALTY_CAP) : p;
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
@@ -2175,7 +2192,7 @@ window.wpResetCycle = function(){
 let habitGroupOrder = JSON.parse(localStorage.getItem('hc-group-order')||'null') || ['morning','evening','general'];
 function saveGroupSettings(){
   if(!_appLoaded) return;
-  fbSet('settings',{groupOrder:habitGroupOrder,groupLabels:JSON.parse(localStorage.getItem('hc-group-labels')||'{}'),penaltyCurve:PENALTY_CURVE});
+  fbSet('settings',{groupOrder:habitGroupOrder,groupLabels:JSON.parse(localStorage.getItem('hc-group-labels')||'{}'),penaltyCurve:PENALTY_CURVE,penaltyCap:PENALTY_CAP});
 }
 
 const SETTINGS_PAGES={
@@ -2232,7 +2249,7 @@ function normGroup(h){ let g=h.group||'morning'; if(g==='night') g='morning'; re
 function habitRowSub(h){
   const bits=[];
   if(h.paused) bits.push('Paused');
-  if(PENALTY_CURVES.includes(h.curve)) bits.push(h.curve==='square'?'Misses: x²':'Misses: linear');
+  if(PENALTY_CURVES.includes(h.curve)) bits.push('Misses: '+CURVE_LABEL[h.curve]);
   return bits.length?`<div class="srow-sub">${bits.join(' · ')}</div>`:'';
 }
 
@@ -2273,6 +2290,7 @@ window.openSettingsEditHabit = function(id){
   let g = h.group||'morning';
   if(g==='night') g='morning';
   document.getElementById('editSettingsHabitGroup').value = g;
+  document.querySelector('#editSettingsHabitCurve option[value=""]').textContent=`Miss penalty: use default (${CURVE_LABEL[PENALTY_CURVE]})`;
   document.getElementById('editSettingsHabitCurve').value = PENALTY_CURVES.includes(h.curve)?h.curve:'';
   document.getElementById('editSettingsHabitModal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('editSettingsHabitName').focus(),100);
@@ -2735,10 +2753,24 @@ function renderDataPage(){
 
 function renderPenaltyCurve(){
   document.querySelectorAll('#penaltyCurveSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.curve===PENALTY_CURVE));
-  document.getElementById('penaltyCurveSub').textContent=PENALTY_CURVE==='square'
-    ?'Consecutive misses cost 1, 4, 9, 16, ... points. Habits can override this under Habits & groups.'
-    :'Consecutive misses cost 1, 2, 3, 4, ... points. Habits can override this under Habits & groups.';
+  document.getElementById('penaltyCurveSub').textContent=`For habits without their own curve. Consecutive misses cost ${CURVE_SERIES[PENALTY_CURVE]} points. Set a habit's own curve under Habits & groups.`;
+  const capIn=document.getElementById('penaltyCapInput');
+  if(document.activeElement!==capIn) capIn.value=PENALTY_CAP>0?PENALTY_CAP:'';
+  document.getElementById('penaltyCapSub').textContent=PENALTY_CAP>0
+    ?`No single miss costs more than ${PENALTY_CAP} points, whatever the curve. Clear the box to remove the cap.`
+    :'Off. A long run of misses keeps costing more. Enter a number to set a maximum per miss.';
 }
+
+window.setPenaltyCap=function(val){
+  const n=Math.max(0,parseInt(val,10)||0);
+  if(n===PENALTY_CAP){ renderPenaltyCurve(); return; }
+  PENALTY_CAP=n;
+  localStorage.setItem('hc-penalty-cap',String(n));
+  saveGroupSettings();
+  renderPenaltyCurve();
+  if(currentMonthId){ renderHabits(); renderDailyScore(); if(activeTab==='overview') renderOverview(); }
+  showToast(n>0?`Penalty capped at ${n} ✓`:'Penalty cap removed');
+};
 
 window.setPenaltyCurve=function(curve){
   if(!PENALTY_CURVES.includes(curve)||curve===PENALTY_CURVE) return;
