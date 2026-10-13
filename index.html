@@ -589,7 +589,7 @@ button{font-family:inherit}
         <section class="card flush">
           <div class="action-row">
             <div class="srow-main">
-              <div class="srow-name">Miss penalty curve</div>
+              <div class="srow-name">Default miss penalty curve</div>
               <div class="srow-sub" id="penaltyCurveSub"></div>
             </div>
             <div class="tabs" id="penaltyCurveSeg" style="flex-shrink:0;min-width:140px">
@@ -648,6 +648,11 @@ button{font-family:inherit}
     <div class="modal-title">Edit habit</div>
     <input class="modal-input" id="editSettingsHabitName" placeholder="Habit name..." onkeydown="if(event.key==='Enter')confirmSettingsEditHabit()">
     <select class="modal-input" id="editSettingsHabitGroup"></select>
+    <select class="modal-input" id="editSettingsHabitCurve" aria-label="Miss penalty curve">
+      <option value="">Miss penalty: use default</option>
+      <option value="linear">Miss penalty: linear (1, 2, 3, ...)</option>
+      <option value="square">Miss penalty: x² (1, 4, 9, ...)</option>
+    </select>
     <div class="modal-btns">
       <button class="btn" onclick="closeSettingsEditHabit()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmSettingsEditHabit()">Save</button>
@@ -1334,9 +1339,14 @@ function getMissStreakBefore(habitId, refDate){
 // No cap, so the only way to stop it growing is to actually do the habit.
 const PENALTY_CURVES=['linear','square'];
 let PENALTY_CURVE=PENALTY_CURVES.includes(localStorage.getItem('hc-penalty-curve'))?localStorage.getItem('hc-penalty-curve'):'linear';
+// Each habit can override the default curve with its own `curve` field.
+function getHabitCurve(habitId){
+  const h=currentMonth&&currentMonth.habits?currentMonth.habits.find(x=>x.id===habitId):null;
+  return h&&PENALTY_CURVES.includes(h.curve)?h.curve:PENALTY_CURVE;
+}
 function getMissPenalty(habitId, date){
   const n=getMissStreakBefore(habitId, date) + 1;
-  return PENALTY_CURVE==='square' ? n*n : n;
+  return getHabitCurve(habitId)==='square' ? n*n : n;
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
@@ -2219,6 +2229,13 @@ function renderSettingsMenu(){
 
 function normGroup(h){ let g=h.group||'morning'; if(g==='night') g='morning'; return g; }
 
+function habitRowSub(h){
+  const bits=[];
+  if(h.paused) bits.push('Paused');
+  if(PENALTY_CURVES.includes(h.curve)) bits.push(h.curve==='square'?'Misses: x²':'Misses: linear');
+  return bits.length?`<div class="srow-sub">${bits.join(' · ')}</div>`:'';
+}
+
 function renderSettingsHabits(){
   const el = document.getElementById('settingsHabitList');
   if(!currentMonthId){ el.innerHTML='<div class="srow empty muted">Open or create a month first.</div>'; return; }
@@ -2235,7 +2252,7 @@ function renderSettingsHabits(){
     hs.forEach(h=>{
       html+=`<div class="srow${h.paused?' is-paused':''}" data-sid="${h.id}">
         <span class="drag" title="Drag to reorder">${ICON.grip}</span>
-        <div class="srow-main"><div class="srow-name">${esc(h.name)}</div>${h.paused?'<div class="srow-sub">Paused</div>':''}</div>
+        <div class="srow-main"><div class="srow-name">${esc(h.name)}</div>${habitRowSub(h)}</div>
         <button class="ibtn" title="${h.paused?'Resume':'Pause'}" aria-label="${h.paused?'Resume':'Pause'}" onclick="toggleHabitPause('${h.id}')">${h.paused?ICON.play:ICON.pause}</button>
         <button class="ibtn" title="Edit" aria-label="Edit" onclick="openSettingsEditHabit('${h.id}')">${ICON.edit}</button>
         <button class="ibtn danger" title="Delete" aria-label="Delete" onclick="settingsDeleteHabit('${h.id}')">${ICON.del}</button>
@@ -2256,6 +2273,7 @@ window.openSettingsEditHabit = function(id){
   let g = h.group||'morning';
   if(g==='night') g='morning';
   document.getElementById('editSettingsHabitGroup').value = g;
+  document.getElementById('editSettingsHabitCurve').value = PENALTY_CURVES.includes(h.curve)?h.curve:'';
   document.getElementById('editSettingsHabitModal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('editSettingsHabitName').focus(),100);
 };
@@ -2268,7 +2286,8 @@ window.confirmSettingsEditHabit = async function(){
   const group = document.getElementById('editSettingsHabitGroup').value;
   if(!name||!_settingsEditId) return;
   const h = currentMonth.habits.find(x=>x.id===_settingsEditId);
-  if(h){ h.name=name; h.group=group; }
+  const curve = document.getElementById('editSettingsHabitCurve').value;
+  if(h){ h.name=name; h.group=group; if(PENALTY_CURVES.includes(curve)) h.curve=curve; else delete h.curve; }
   closeSettingsEditHabit();
   refreshHabitViews();
   await fbSet(`months/${currentMonthId}/habits`, currentMonth.habits);
@@ -2717,8 +2736,8 @@ function renderDataPage(){
 function renderPenaltyCurve(){
   document.querySelectorAll('#penaltyCurveSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.curve===PENALTY_CURVE));
   document.getElementById('penaltyCurveSub').textContent=PENALTY_CURVE==='square'
-    ?'Consecutive misses cost 1, 4, 9, 16, ... points.'
-    :'Consecutive misses cost 1, 2, 3, 4, ... points.';
+    ?'Consecutive misses cost 1, 4, 9, 16, ... points. Habits can override this under Habits & groups.'
+    :'Consecutive misses cost 1, 2, 3, 4, ... points. Habits can override this under Habits & groups.';
 }
 
 window.setPenaltyCurve=function(curve){
