@@ -587,9 +587,13 @@ button{font-family:inherit}
 
       <div id="sp-data" class="spage hidden">
         <section class="card flush">
+          <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:4px">
+            <h2 class="card-title">Motivation system</h2>
+            <div class="srow-sub">Tailors how hard a missed habit hits, so tougher habits can get a stronger push. Each miss in a row costs more, following the curve, up to the cap. Give a habit its own curve and cap under Habits &amp; groups.</div>
+          </div>
           <div class="action-row">
             <div class="srow-main">
-              <div class="srow-name">Default miss penalty curve</div>
+              <div class="srow-name">Default curve</div>
               <div class="srow-sub" id="penaltyCurveSub"></div>
             </div>
             <div class="tabs" id="penaltyCurveSeg" style="flex-shrink:0;min-width:190px">
@@ -600,11 +604,13 @@ button{font-family:inherit}
           </div>
           <div class="action-row">
             <div class="srow-main">
-              <div class="srow-name">Default penalty cap</div>
+              <div class="srow-name">Default cap</div>
               <div class="srow-sub" id="penaltyCapSub"></div>
             </div>
-            <input class="modal-input" id="penaltyCapInput" type="number" min="0" step="1" inputmode="numeric" placeholder="No cap" aria-label="Penalty cap" style="width:96px;margin:0;flex-shrink:0" onchange="setPenaltyCap(this.value)">
+            <input class="modal-input" id="penaltyCapInput" type="number" min="0" step="1" inputmode="numeric" placeholder="No cap" aria-label="Default cap" style="width:96px;margin:0;flex-shrink:0" onchange="setPenaltyCap(this.value)">
           </div>
+        </section>
+        <section class="card flush">
           <div class="action-row">
             <div class="srow-main">
               <div class="srow-name">Reset miss penalties</div>
@@ -656,14 +662,15 @@ button{font-family:inherit}
     <div class="modal-title">Edit habit</div>
     <input class="modal-input" id="editSettingsHabitName" placeholder="Habit name..." onkeydown="if(event.key==='Enter')confirmSettingsEditHabit()">
     <select class="modal-input" id="editSettingsHabitGroup"></select>
-    <select class="modal-input" id="editSettingsHabitCurve" aria-label="Miss penalty curve">
-      <option value="">Miss penalty: use default</option>
-      <option value="linear">Miss penalty: linear (1, 2, 3, ...)</option>
-      <option value="double">Miss penalty: doubling (1, 2, 4, 8, ...)</option>
-      <option value="square">Miss penalty: x² (1, 4, 9, ...)</option>
+    <div class="srow-name" style="margin:4px 0 6px">Motivation system</div>
+    <select class="modal-input" id="editSettingsHabitCurve" aria-label="Motivation curve">
+      <option value="">Curve: use default</option>
+      <option value="linear">Curve: linear (1, 2, 3, ...)</option>
+      <option value="double">Curve: doubling (1, 2, 4, 8, ...)</option>
+      <option value="square">Curve: x² (1, 4, 9, ...)</option>
     </select>
-    <label for="editSettingsHabitCap" class="srow-sub" style="display:block;margin:0 0 6px">Max points per miss. Leave empty to use the default cap.</label>
-    <input class="modal-input" id="editSettingsHabitCap" type="number" min="0" step="1" inputmode="numeric" aria-label="Penalty cap for this habit">
+    <label for="editSettingsHabitCap" class="srow-sub" style="display:block;margin:0 0 6px">Cap: max points per miss. Leave empty to use the default cap.</label>
+    <input class="modal-input" id="editSettingsHabitCap" type="number" min="0" step="1" inputmode="numeric" aria-label="Motivation cap for this habit">
     <div class="modal-btns">
       <button class="btn" onclick="closeSettingsEditHabit()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmSettingsEditHabit()">Save</button>
@@ -2242,7 +2249,7 @@ function renderSettingsMenu(){
     ['questions','Reflection questions',m?`${currentMonth.questions.length} questions`:'Open a month first'],
     ['workout','Workout','Cycle slots, gym and cardio presets'],
     ['months','Month archive',`${monthList.length} month${monthList.length===1?'':'s'} · add or remove`],
-    ['data','Scoring & data','Miss penalty curve, resets, export, clear data'],
+    ['data','Scoring & data','Motivation system, resets, export, clear data'],
     ['why','Why a habit tracker',''],
   ];
   document.getElementById('settingsMenu').innerHTML=rows.map(([p,name,sub])=>`
@@ -2257,8 +2264,10 @@ function normGroup(h){ let g=h.group||'morning'; if(g==='night') g='morning'; re
 function habitRowSub(h){
   const bits=[];
   if(h.paused) bits.push('Paused');
-  if(PENALTY_CURVES.includes(h.curve)) bits.push('Misses: '+CURVE_LABEL[h.curve]);
-  if(h.cap>0) bits.push('Cap '+h.cap);
+  const mot=[];
+  if(PENALTY_CURVES.includes(h.curve)) mot.push(CURVE_LABEL[h.curve]);
+  if(h.cap>0) mot.push('cap '+h.cap);
+  if(mot.length) bits.push('Motivation: '+mot.join(', '));
   return bits.length?`<div class="srow-sub">${bits.join(' · ')}</div>`:'';
 }
 
@@ -2299,11 +2308,11 @@ window.openSettingsEditHabit = function(id){
   let g = h.group||'morning';
   if(g==='night') g='morning';
   document.getElementById('editSettingsHabitGroup').value = g;
-  document.querySelector('#editSettingsHabitCurve option[value=""]').textContent=`Miss penalty: use default (${CURVE_LABEL[PENALTY_CURVE]})`;
+  document.querySelector('#editSettingsHabitCurve option[value=""]').textContent=`Curve: use default (${CURVE_LABEL[PENALTY_CURVE]})`;
   document.getElementById('editSettingsHabitCurve').value = PENALTY_CURVES.includes(h.curve)?h.curve:'';
   const capIn=document.getElementById('editSettingsHabitCap');
   capIn.value = h.cap>0?h.cap:'';
-  capIn.placeholder = PENALTY_CAP>0?`Max per miss: use default (${PENALTY_CAP})`:'Max per miss: use default (no cap)';
+  capIn.placeholder = PENALTY_CAP>0?`Use default (${PENALTY_CAP})`:'Use default (no cap)';
   document.getElementById('editSettingsHabitModal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('editSettingsHabitName').focus(),100);
 };
@@ -2767,12 +2776,12 @@ function renderDataPage(){
 
 function renderPenaltyCurve(){
   document.querySelectorAll('#penaltyCurveSeg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.curve===PENALTY_CURVE));
-  document.getElementById('penaltyCurveSub').textContent=`For habits without their own curve. Consecutive misses cost ${CURVE_SERIES[PENALTY_CURVE]} points. Set a habit's own curve under Habits & groups.`;
+  document.getElementById('penaltyCurveSub').textContent=`For habits without their own curve. Misses in a row cost ${CURVE_SERIES[PENALTY_CURVE]} points.`;
   const capIn=document.getElementById('penaltyCapInput');
   if(document.activeElement!==capIn) capIn.value=PENALTY_CAP>0?PENALTY_CAP:'';
   document.getElementById('penaltyCapSub').textContent=PENALTY_CAP>0
     ?`For habits without their own cap, no single miss costs more than ${PENALTY_CAP} points. Clear the box to remove it.`
-    :'Off. Enter a number to set a maximum per miss for habits without their own cap. Set a habit\'s own cap under Habits & groups.';
+    :'Off. Enter a number to set a maximum per miss for habits without their own cap.';
 }
 
 window.setPenaltyCap=function(val){
