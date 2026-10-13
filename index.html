@@ -600,7 +600,7 @@ button{font-family:inherit}
           </div>
           <div class="action-row">
             <div class="srow-main">
-              <div class="srow-name">Penalty cap</div>
+              <div class="srow-name">Default penalty cap</div>
               <div class="srow-sub" id="penaltyCapSub"></div>
             </div>
             <input class="modal-input" id="penaltyCapInput" type="number" min="0" step="1" inputmode="numeric" placeholder="No cap" aria-label="Penalty cap" style="width:96px;margin:0;flex-shrink:0" onchange="setPenaltyCap(this.value)">
@@ -662,6 +662,8 @@ button{font-family:inherit}
       <option value="double">Miss penalty: doubling (1, 2, 4, 8, ...)</option>
       <option value="square">Miss penalty: x² (1, 4, 9, ...)</option>
     </select>
+    <label for="editSettingsHabitCap" class="srow-sub" style="display:block;margin:0 0 6px">Max points per miss. Leave empty to use the default cap.</label>
+    <input class="modal-input" id="editSettingsHabitCap" type="number" min="0" step="1" inputmode="numeric" aria-label="Penalty cap for this habit">
     <div class="modal-btns">
       <button class="btn" onclick="closeSettingsEditHabit()">Cancel</button>
       <button class="btn btn-primary" onclick="confirmSettingsEditHabit()">Save</button>
@@ -1359,11 +1361,17 @@ function getHabitCurve(habitId){
   const h=currentMonth&&currentMonth.habits?currentMonth.habits.find(x=>x.id===habitId):null;
   return h&&PENALTY_CURVES.includes(h.curve)?h.curve:PENALTY_CURVE;
 }
+// A habit's own cap (`cap` > 0) overrides the default cap. 0 means no cap.
+function getHabitCap(habitId){
+  const h=currentMonth&&currentMonth.habits?currentMonth.habits.find(x=>x.id===habitId):null;
+  return h&&h.cap>0?h.cap:PENALTY_CAP;
+}
 function getMissPenalty(habitId, date){
   const n=getMissStreakBefore(habitId, date) + 1;
   const curve=getHabitCurve(habitId);
   const p = curve==='square' ? n*n : curve==='double' ? Math.pow(2,n-1) : n;
-  return PENALTY_CAP>0 ? Math.min(p,PENALTY_CAP) : p;
+  const cap=getHabitCap(habitId);
+  return cap>0 ? Math.min(p,cap) : p;
 }
 
 // Total weighted points for a day: +1 per completed habit, escalating negative
@@ -2250,6 +2258,7 @@ function habitRowSub(h){
   const bits=[];
   if(h.paused) bits.push('Paused');
   if(PENALTY_CURVES.includes(h.curve)) bits.push('Misses: '+CURVE_LABEL[h.curve]);
+  if(h.cap>0) bits.push('Cap '+h.cap);
   return bits.length?`<div class="srow-sub">${bits.join(' · ')}</div>`:'';
 }
 
@@ -2292,6 +2301,9 @@ window.openSettingsEditHabit = function(id){
   document.getElementById('editSettingsHabitGroup').value = g;
   document.querySelector('#editSettingsHabitCurve option[value=""]').textContent=`Miss penalty: use default (${CURVE_LABEL[PENALTY_CURVE]})`;
   document.getElementById('editSettingsHabitCurve').value = PENALTY_CURVES.includes(h.curve)?h.curve:'';
+  const capIn=document.getElementById('editSettingsHabitCap');
+  capIn.value = h.cap>0?h.cap:'';
+  capIn.placeholder = PENALTY_CAP>0?`Max per miss: use default (${PENALTY_CAP})`:'Max per miss: use default (no cap)';
   document.getElementById('editSettingsHabitModal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('editSettingsHabitName').focus(),100);
 };
@@ -2305,7 +2317,9 @@ window.confirmSettingsEditHabit = async function(){
   if(!name||!_settingsEditId) return;
   const h = currentMonth.habits.find(x=>x.id===_settingsEditId);
   const curve = document.getElementById('editSettingsHabitCurve').value;
-  if(h){ h.name=name; h.group=group; if(PENALTY_CURVES.includes(curve)) h.curve=curve; else delete h.curve; }
+  if(h){ h.name=name; h.group=group; if(PENALTY_CURVES.includes(curve)) h.curve=curve; else delete h.curve;
+    const cap=parseInt(document.getElementById('editSettingsHabitCap').value,10);
+    if(cap>0) h.cap=cap; else delete h.cap; }
   closeSettingsEditHabit();
   refreshHabitViews();
   await fbSet(`months/${currentMonthId}/habits`, currentMonth.habits);
@@ -2757,8 +2771,8 @@ function renderPenaltyCurve(){
   const capIn=document.getElementById('penaltyCapInput');
   if(document.activeElement!==capIn) capIn.value=PENALTY_CAP>0?PENALTY_CAP:'';
   document.getElementById('penaltyCapSub').textContent=PENALTY_CAP>0
-    ?`No single miss costs more than ${PENALTY_CAP} points, whatever the curve. Clear the box to remove the cap.`
-    :'Off. A long run of misses keeps costing more. Enter a number to set a maximum per miss.';
+    ?`For habits without their own cap, no single miss costs more than ${PENALTY_CAP} points. Clear the box to remove it.`
+    :'Off. Enter a number to set a maximum per miss for habits without their own cap. Set a habit\'s own cap under Habits & groups.';
 }
 
 window.setPenaltyCap=function(val){
