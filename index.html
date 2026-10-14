@@ -600,6 +600,7 @@ button{font-family:inherit}
               <button class="seg-btn" data-curve="linear" onclick="setPenaltyCurve('linear')">Linear</button>
               <button class="seg-btn" data-curve="double" onclick="setPenaltyCurve('double')">Doubling</button>
               <button class="seg-btn" data-curve="square" onclick="setPenaltyCurve('square')">x²</button>
+              <button class="seg-btn" data-curve="cube" onclick="setPenaltyCurve('cube')">x³</button>
             </div>
           </div>
           <div class="action-row">
@@ -668,6 +669,7 @@ button{font-family:inherit}
       <option value="linear">Curve: linear (1, 2, 3, ...)</option>
       <option value="double">Curve: doubling (1, 2, 4, 8, ...)</option>
       <option value="square">Curve: x² (1, 4, 9, ...)</option>
+      <option value="cube">Curve: x³ (1, 8, 27, ...)</option>
     </select>
     <label for="editSettingsHabitCap" class="srow-sub" style="display:block;margin:0 0 6px">Cap: max points per miss. Leave empty to use the default cap.</label>
     <input class="modal-input" id="editSettingsHabitCap" type="number" min="0" step="1" inputmode="numeric" aria-label="Motivation cap for this habit">
@@ -1357,9 +1359,9 @@ function getMissStreakBefore(habitId, refDate){
 // Penalty for a habit if missed on `date`, where n is the miss number in the
 // current streak: linear gives n (1, 2, 3, ...), square gives n² (1, 4, 9, ...).
 // No cap, so the only way to stop it growing is to actually do the habit.
-const PENALTY_CURVES=['linear','double','square'];
-const CURVE_LABEL={linear:'linear',double:'doubling',square:'x²'};
-const CURVE_SERIES={linear:'1, 2, 3, 4, ...',double:'1, 2, 4, 8, ...',square:'1, 4, 9, 16, ...'};
+const PENALTY_CURVES=['linear','double','square','cube'];
+const CURVE_LABEL={linear:'linear',double:'doubling',square:'x²',cube:'x³'};
+const CURVE_SERIES={linear:'1, 2, 3, 4, ...',double:'1, 2, 4, 8, ...',square:'1, 4, 9, 16, ...',cube:'1, 8, 27, 64, ...'};
 // Optional cap on the penalty for a single miss. 0 means no cap.
 let PENALTY_CAP=Math.max(0,parseInt(localStorage.getItem('hc-penalty-cap')||'0',10)||0);
 let PENALTY_CURVE=PENALTY_CURVES.includes(localStorage.getItem('hc-penalty-curve'))?localStorage.getItem('hc-penalty-curve'):'linear';
@@ -1376,7 +1378,7 @@ function getHabitCap(habitId){
 function getMissPenalty(habitId, date){
   const n=getMissStreakBefore(habitId, date) + 1;
   const curve=getHabitCurve(habitId);
-  const p = curve==='square' ? n*n : curve==='double' ? Math.pow(2,n-1) : n;
+  const p = curve==='cube' ? n*n*n : curve==='square' ? n*n : curve==='double' ? Math.pow(2,n-1) : n;
   const cap=getHabitCap(habitId);
   return cap>0 ? Math.min(p,cap) : p;
 }
